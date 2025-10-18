@@ -1,6 +1,10 @@
-# Template for Isaac Lab Projects
+# Articulated Aerial Robot IsaacLab Environments
 
 ## Overview
+
+### Dependence
+1. [Isaac Sim](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html) `5.0.0`
+2. [Isaac Lab](https://github.com/isaac-sim/IsaacLab) `2.2.1`
 
 This project/repository serves as a template for building projects or extensions based on Isaac Lab.
 It allows you to develop in an isolated environment, outside of the core Isaac Lab repository.
@@ -14,8 +18,19 @@ It allows you to develop in an isolated environment, outside of the core Isaac L
 
 ## Installation
 
-- Install Isaac Lab by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).
-  We recommend using the conda or uv installation as it simplifies calling Python scripts from the terminal.
+### Nvidia Driver
+Older version nvidia-driver cannot support high version cuda. It is recommanded to install your gpu driber more than `570`
+
+### Isaac Lab 
+Install Isaac Lab by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).  
+We recommend using the conda or uv installation as it simplifies calling Python scripts from the terminal.  
+
+- Install [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install). Be careful to the python version of your host machine.
+- Create virtual environment
+    ```bash
+    conda create -n aeriallab python=3.11
+    conda activate aeriallab
+    ```
 
 - Clone or copy this project/repository separately from the Isaac Lab installation (i.e. outside the `IsaacLab` directory):
 
