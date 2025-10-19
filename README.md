@@ -21,9 +21,9 @@ It allows you to develop in an isolated environment, outside of the core Isaac L
 ### Nvidia Driver
 Older version nvidia-driver cannot support high version cuda. It is recommanded to install your gpu driber more than `570`
 
-### Isaac Lab 
-Install Isaac Lab by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).  
-We recommend using the conda or uv installation as it simplifies calling Python scripts from the terminal.  
+### Isaac Lab
+Install Isaac Lab by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).
+We recommend using the conda or uv installation as it simplifies calling Python scripts from the terminal.
 
 - Install [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install). Be careful to the python version of your host machine.
 - Create virtual environment
@@ -77,7 +77,7 @@ We recommend using the conda or uv installation as it simplifies calling Python 
             ```
 
 ### URDF Visualizer
-isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`. So, we recommend to get `.urdf` file. 
+isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`. So, we recommend to get `.urdf` file.
 - convert `.xacro` to `.urdf`
     ```bash
     # 1. install tools
@@ -91,7 +91,7 @@ isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`.
     urdf_to_graphiz robot.urdf
     ```
 
-- click `eye` symble on the right corner of `.urdf` or `.xacro` file. 
+- click `eye` symble on the right corner of `.urdf` or `.xacro` file.
 
 ### Set up IDE (Optional)
 

@@ -6,10 +6,9 @@ Reference: https://github.com/unitreerobotics/unitree_ros
 """
 
 import isaaclab.sim as sim_utils
+from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
 from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
-
-from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
 
 ##
 # Configuration

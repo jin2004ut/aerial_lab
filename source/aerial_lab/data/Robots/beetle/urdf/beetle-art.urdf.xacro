@@ -29,7 +29,7 @@
         <inertia
             ixx="0.02302471" iyy="0.02236968" izz="0.03673293"
             ixy="-0.00000599" ixz="0.00008637" iyz="0.00005997"/>
-      </inertial>   
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -152,7 +152,7 @@
 
     ## thrust link (virtual)
     <link name="thrust${self}">
-      <inertial>      
+      <inertial>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <mass value="0.005"/>
         <inertia

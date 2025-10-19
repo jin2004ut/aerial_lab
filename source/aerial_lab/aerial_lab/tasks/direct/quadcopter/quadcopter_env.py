@@ -6,9 +6,8 @@
 from __future__ import annotations
 
 import gymnasium as gym
-import torch
-
 import isaaclab.sim as sim_utils
+import torch
 from isaaclab.assets import Articulation, ArticulationCfg
 from isaaclab.envs import DirectRLEnv, DirectRLEnvCfg
 from isaaclab.envs.ui import BaseEnvWindow

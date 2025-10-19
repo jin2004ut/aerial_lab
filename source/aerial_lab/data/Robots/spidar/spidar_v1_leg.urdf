@@ -5,27 +5,27 @@
 <!-- =================================================================================== -->
 <robot name="spidar">
    ### [N]
-  
-    ### [N]
-  
+
     ### [N]
 
-  
+    ### [N]
+
+
   <baselink name="fc"/>
   <thrust_link name="thrust"/>
   <m_f_rate value="0"/>
   <!-- drug torque rate -->
-  
+
 
   #### CENTER LINK ####
-  
-  
+
+
 
   #### LINK ####
-  
-  
+
+
     #### dummy root link for KDL ####
-    
+
   <link name="root">
     <inertial>
       <mass value="0.00001"/>
@@ -39,10 +39,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### link ####
-    
+
   <link name="center_link">
     <inertial>
       <mass value="1.1780349"/>
@@ -329,10 +329,10 @@
     <mu1>100</mu1>
     <mu2>50</mu2>
   </gazebo>
-  
+
 
     #### joints ####
-    
+
   <joint name="joint1_yaw" type="revolute">
     <limit effort="6.6" lower="-1.9107963267948966" upper="1.9107963267948966" velocity="0.1"/>
     <parent link="center_link"/>
@@ -365,10 +365,10 @@
     <axis xyz="0 0 1"/>
     <dynamics damping="0.9" friction="0.0"/>
   </joint>
-  
+
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="joint1_yaw">
@@ -409,9 +409,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link1">
     <inertial>
       <mass value="0.523"/>
@@ -438,10 +438,10 @@
   <gazebo reference="link1">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal1_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -462,10 +462,10 @@
   <gazebo reference="gimbal1_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal1_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -486,10 +486,10 @@
   <gazebo reference="gimbal1_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust1">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -500,10 +500,10 @@
   <gazebo reference="thrust1">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf1_left_mount" type="fixed">
     <child link="edf1_left"/>
     <parent link="gimbal1_pitch_module"/>
@@ -530,10 +530,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
+
   <link name="joint_junction_link2">
     <inertial>
       <mass value="0.095"/>
@@ -599,11 +599,11 @@
     <mu1>100</mu1>
     <mu2>50</mu2>
   </gazebo>
-  
+
 
     #### joints ####
     #### link joint ####
-    
+
   <joint name="joint2_yaw" type="revolute">
     <limit effort="6.6" lower="-1.9107963267948966" upper="1.9107963267948966" velocity="0.1"/>
     <parent link="link1"/>
@@ -612,10 +612,10 @@
     <axis xyz="0 0 1"/>
     <dynamics damping="0.9" friction="0.0"/>
   </joint>
-  
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal1_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link1"/>
@@ -632,10 +632,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor1" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal1_pitch_module"/>
@@ -643,10 +643,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link12bat1" type="fixed">
     <parent link="link1"/>
     <child link="bat1"/>
@@ -664,15 +664,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="joint2_yaw">
@@ -713,9 +713,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link2">
     <inertial>
       <mass value="0.347"/>
@@ -742,10 +742,10 @@
   <gazebo reference="link2">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal2_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -766,10 +766,10 @@
   <gazebo reference="gimbal2_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal2_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -790,10 +790,10 @@
   <gazebo reference="gimbal2_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust2">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -804,10 +804,10 @@
   <gazebo reference="thrust2">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf2_left_mount" type="fixed">
     <child link="edf2_left"/>
     <parent link="gimbal2_pitch_module"/>
@@ -834,19 +834,19 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
-  
+
+
 
     #### joints ####
     #### link joint ####
-    
-  
+
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal2_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link2"/>
@@ -863,10 +863,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor2" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal2_pitch_module"/>
@@ -874,10 +874,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link22bat2" type="fixed">
     <parent link="link2"/>
     <child link="bat2"/>
@@ -895,15 +895,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="gimbal2_roll">
@@ -934,9 +934,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link3">
     <inertial>
       <mass value="0.523"/>
@@ -963,10 +963,10 @@
   <gazebo reference="link3">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal3_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -987,10 +987,10 @@
   <gazebo reference="gimbal3_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal3_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -1011,10 +1011,10 @@
   <gazebo reference="gimbal3_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust3">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -1025,10 +1025,10 @@
   <gazebo reference="thrust3">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf3_left_mount" type="fixed">
     <child link="edf3_left"/>
     <parent link="gimbal3_pitch_module"/>
@@ -1055,10 +1055,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
+
   <link name="joint_junction_link4">
     <inertial>
       <mass value="0.095"/>
@@ -1124,11 +1124,11 @@
     <mu1>100</mu1>
     <mu2>50</mu2>
   </gazebo>
-  
+
 
     #### joints ####
     #### link joint ####
-    
+
   <joint name="joint4_yaw" type="revolute">
     <limit effort="6.6" lower="-1.9107963267948966" upper="1.9107963267948966" velocity="0.1"/>
     <parent link="link3"/>
@@ -1137,10 +1137,10 @@
     <axis xyz="0 0 1"/>
     <dynamics damping="0.9" friction="0.0"/>
   </joint>
-  
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal3_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link3"/>
@@ -1157,10 +1157,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor3" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal3_pitch_module"/>
@@ -1168,10 +1168,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link32bat3" type="fixed">
     <parent link="link3"/>
     <child link="bat3"/>
@@ -1189,15 +1189,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="joint4_yaw">
@@ -1238,9 +1238,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link4">
     <inertial>
       <mass value="0.347"/>
@@ -1267,10 +1267,10 @@
   <gazebo reference="link4">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal4_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -1291,10 +1291,10 @@
   <gazebo reference="gimbal4_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal4_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -1315,10 +1315,10 @@
   <gazebo reference="gimbal4_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust4">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -1329,10 +1329,10 @@
   <gazebo reference="thrust4">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf4_left_mount" type="fixed">
     <child link="edf4_left"/>
     <parent link="gimbal4_pitch_module"/>
@@ -1359,19 +1359,19 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
-  
+
+
 
     #### joints ####
     #### link joint ####
-    
-  
+
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal4_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link4"/>
@@ -1388,10 +1388,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor4" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal4_pitch_module"/>
@@ -1399,10 +1399,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link42bat4" type="fixed">
     <parent link="link4"/>
     <child link="bat4"/>
@@ -1420,15 +1420,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="gimbal4_roll">
@@ -1459,9 +1459,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link5">
     <inertial>
       <mass value="0.523"/>
@@ -1488,10 +1488,10 @@
   <gazebo reference="link5">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal5_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -1512,10 +1512,10 @@
   <gazebo reference="gimbal5_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal5_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -1536,10 +1536,10 @@
   <gazebo reference="gimbal5_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust5">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -1550,10 +1550,10 @@
   <gazebo reference="thrust5">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf5_left_mount" type="fixed">
     <child link="edf5_left"/>
     <parent link="gimbal5_pitch_module"/>
@@ -1580,10 +1580,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
+
   <link name="joint_junction_link6">
     <inertial>
       <mass value="0.095"/>
@@ -1649,11 +1649,11 @@
     <mu1>100</mu1>
     <mu2>50</mu2>
   </gazebo>
-  
+
 
     #### joints ####
     #### link joint ####
-    
+
   <joint name="joint6_yaw" type="revolute">
     <limit effort="6.6" lower="-1.9107963267948966" upper="1.9107963267948966" velocity="0.1"/>
     <parent link="link5"/>
@@ -1662,10 +1662,10 @@
     <axis xyz="0 0 1"/>
     <dynamics damping="0.9" friction="0.0"/>
   </joint>
-  
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal5_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link5"/>
@@ -1682,10 +1682,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor5" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal5_pitch_module"/>
@@ -1693,10 +1693,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link52bat5" type="fixed">
     <parent link="link5"/>
     <child link="bat5"/>
@@ -1714,15 +1714,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="joint6_yaw">
@@ -1763,9 +1763,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link6">
     <inertial>
       <mass value="0.347"/>
@@ -1792,10 +1792,10 @@
   <gazebo reference="link6">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal6_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -1816,10 +1816,10 @@
   <gazebo reference="gimbal6_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal6_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -1840,10 +1840,10 @@
   <gazebo reference="gimbal6_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust6">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -1854,10 +1854,10 @@
   <gazebo reference="thrust6">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf6_left_mount" type="fixed">
     <child link="edf6_left"/>
     <parent link="gimbal6_pitch_module"/>
@@ -1884,19 +1884,19 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
-  
+
+
 
     #### joints ####
     #### link joint ####
-    
-  
+
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal6_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link6"/>
@@ -1913,10 +1913,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor6" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal6_pitch_module"/>
@@ -1924,10 +1924,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link62bat6" type="fixed">
     <parent link="link6"/>
     <child link="bat6"/>
@@ -1945,15 +1945,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="gimbal6_roll">
@@ -1984,9 +1984,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link7">
     <inertial>
       <mass value="0.523"/>
@@ -2013,10 +2013,10 @@
   <gazebo reference="link7">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal7_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -2037,10 +2037,10 @@
   <gazebo reference="gimbal7_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal7_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -2061,10 +2061,10 @@
   <gazebo reference="gimbal7_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust7">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -2075,10 +2075,10 @@
   <gazebo reference="thrust7">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf7_left_mount" type="fixed">
     <child link="edf7_left"/>
     <parent link="gimbal7_pitch_module"/>
@@ -2105,10 +2105,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
+
   <link name="joint_junction_link8">
     <inertial>
       <mass value="0.095"/>
@@ -2174,11 +2174,11 @@
     <mu1>100</mu1>
     <mu2>50</mu2>
   </gazebo>
-  
+
 
     #### joints ####
     #### link joint ####
-    
+
   <joint name="joint8_yaw" type="revolute">
     <limit effort="6.6" lower="-1.9107963267948966" upper="1.9107963267948966" velocity="0.1"/>
     <parent link="link7"/>
@@ -2187,10 +2187,10 @@
     <axis xyz="0 0 1"/>
     <dynamics damping="0.9" friction="0.0"/>
   </joint>
-  
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal7_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link7"/>
@@ -2207,10 +2207,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor7" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal7_pitch_module"/>
@@ -2218,10 +2218,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link72bat7" type="fixed">
     <parent link="link7"/>
     <child link="bat7"/>
@@ -2239,15 +2239,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="joint8_yaw">
@@ -2288,9 +2288,9 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### link ####
-    
+
   <link name="link8">
     <inertial>
       <mass value="0.347"/>
@@ -2317,10 +2317,10 @@
   <gazebo reference="link8">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal roll ####
-    
+
   <link name="gimbal8_roll_module">
     <inertial>
       <mass value="0.275"/>
@@ -2341,10 +2341,10 @@
   <gazebo reference="gimbal8_roll_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### gimbal pitch ####
-    
+
   <link name="gimbal8_pitch_module">
     <inertial>
       <mass value="0.434"/>
@@ -2365,10 +2365,10 @@
   <gazebo reference="gimbal8_pitch_module">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### thrust link (virtual) ####
-    
+
   <link name="thrust8">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -2379,10 +2379,10 @@
   <gazebo reference="thrust8">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### special part of duct fun (temporary)####
-    
+
   <joint name="edf8_left_mount" type="fixed">
     <child link="edf8_left"/>
     <parent link="gimbal8_pitch_module"/>
@@ -2409,19 +2409,19 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
   </link>
-  
+
 
     #### joint junction ####
-    
-  
+
+
 
     #### joints ####
     #### link joint ####
-    
-  
+
+
 
     #### gimbal joint ####
-    
+
   <joint name="gimbal8_roll" type="continuous">
     <limit effort="1.5" lower="-18.84955592153876" upper="18.84955592153876" velocity="10.0"/>
     <parent link="link8"/>
@@ -2438,10 +2438,10 @@
     <axis xyz="0 1 0"/>
     <dynamics damping="0.1" friction="0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor8" type="continuous">
     <limit effort="100.0" lower="0" upper="36" velocity="0.5"/>
     <parent link="gimbal8_pitch_module"/>
@@ -2449,10 +2449,10 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  
+
 
     #### battery ####
-    
+
   <joint name="link82bat8" type="fixed">
     <parent link="link8"/>
     <child link="bat8"/>
@@ -2470,15 +2470,15 @@
       </geometry>
     </visual>
   </link>
-  
+
 
     #### end leg ####
-    
-  
+
+
 
 
     #### hardware interface ####
-    
+
   <transmission name="{joint}_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="gimbal8_roll">
@@ -2509,10 +2509,10 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
 
   #### flight controller ####
-  
+
   <joint name="center_link2fc" type="fixed">
     <parent link="center_link"/>
     <child link="fc"/>
@@ -2668,4 +2668,3 @@
     <mu2>0</mu2>
   </gazebo>
 </robot>
-
