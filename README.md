@@ -76,6 +76,23 @@ We recommend using the conda or uv installation as it simplifies calling Python 
             python scripts/random_agent.py --task=<TASK_NAME>
             ```
 
+### URDF Visualizer
+isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`. So, we recommend to get `.urdf` file. 
+- convert `.xacro` to `.urdf`
+    ```bash
+    # 1. install tools
+    sudo apt install liburdfdom-tools
+    sudo apt install ros-noetic-urdf
+    # 2. convert xacro to urdf
+    rosrun xacro xacro robot.xacro > robot.urdf
+    # 3. check urdf
+    check_urdf robot.urdf
+    # view urdf
+    urdf_to_graphiz robot.urdf
+    ```
+
+- click `eye` symble on the right corner of `.urdf` or `.xacro` file. 
+
 ### Set up IDE (Optional)
 
 To setup the IDE, please follow these instructions:
