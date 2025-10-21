@@ -82,5 +82,15 @@
     },
     // Python extra paths
     // Note: this is filled up when vscode is set up for the first time
-    "python.analysis.extraPaths": []
+    "python.analysis.extraPaths": [],
+    "urdf-visualizer.packages": {
+        "beetle": "${workspaceFolder}/source/aerial_lab/data/Robots/beetle",
+        "beetle_omni": "${workspaceFolder}/source/aerial_lab/data/Robots/beetle_omni",
+        "mini_quadrotor": "${workspaceFolder}/source/aerial_lab/data/Robots/mini_quadrotor",
+        "spidar": "${workspaceFolder}/source/aerial_lab/data/Robots/spidar",
+        "dragon": "${workspaceFolder}/source/aerial_lab/data/Robots/dragon",
+        "hydrus": "${workspaceFolder}/source/aerial_lab/data/Robots/hydrus",
+        "a1_description": "${workspaceFolder}/source/aerial_lab/data/Robots/a1_description",
+        "go1_description": "${workspaceFolder}/source/aerial_lab/data/Robots/go1_description"
+    }
 }

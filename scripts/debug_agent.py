@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Script to an environment with random action agent."""
+"""Script to run an environment with zero action agent."""
 
 """Launch Isaac Sim Simulator first."""
 
@@ -12,7 +12,7 @@ import argparse
 from isaaclab.app import AppLauncher
 
 # add argparse arguments
-parser = argparse.ArgumentParser(description="Random agent for Isaac Lab environments.")
+parser = argparse.ArgumentParser(description="Zero agent for Isaac Lab environments.")
 parser.add_argument(
     "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
 )
@@ -37,17 +37,14 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 
 def main():
-    """Random actions agent with Isaac Lab environment."""
-    # create environment configuration
+    """Zero actions agent with Isaac Lab environment."""
+    # parse configuration
+    # downsample number of environments for random agent
+    args_cli.num_envs = 4
     env_cfg = parse_env_cfg(
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
-    # downsample number of environments for random agent
-    # if args_cli.num_envs is not None:
-    #     env_cfg.scene.num_envs = args_cli.num_envs
-    # elif env_cfg.scene.num_envs > 16:
-    #     env_cfg.scene.num_envs = 16
-    # env_cfg.scene.env_spacing = 2.5
+    env_cfg.scene.env_spacing = 0.5
     # create environment
     env = gym.make(args_cli.task, cfg=env_cfg)
 
@@ -60,8 +57,8 @@ def main():
     while simulation_app.is_running():
         # run everything in inference mode
         with torch.inference_mode():
-            # sample actions from -1 to 1
-            actions = 2 * torch.rand(env.action_space.shape, device=env.unwrapped.device) - 1
+            # compute zero actions
+            actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
             # apply actions
             env.step(actions)
 

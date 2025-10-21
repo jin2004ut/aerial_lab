@@ -38,7 +38,9 @@
     <visual>
       <origin rpy="0 0 3.141592" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://beetle/mesh/base_link.dae"/>
+        <!-- <mesh filename="package://beetle/mesh/base_link.dae"/> -->
+        <!-- <mesh filename="package://beetle/mesh/base_link.STL"/> -->
+        <mesh filename="package://beetle/mesh/base_link_beetle_art.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -258,7 +260,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor1" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent1"/>
     <child link="thrust1"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -363,7 +365,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor2" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent2"/>
     <child link="thrust2"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -468,7 +470,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor3" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent3"/>
     <child link="thrust3"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -573,7 +575,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor4" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent4"/>
     <child link="thrust4"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -606,13 +608,13 @@
       <inertia ixx="0.0001" ixy="0.0000" ixz="0.0000" iyy="0.0001" iyz="0.0000" izz="0.0001"/>
     </inertial>
   </link>
-  <joint name="dummy_arm_palm_joint" type="revolute">
+  <joint name="dummy_arm_palm_joint" type="fixed">
     <parent link="dummy_arm"/>
     <child link="dummy_palm"/>
     <origin rpy="0 0 0" xyz="0.02 0 0"/>
-    <axis xyz="1 0 0"/>
+    <!-- <axis xyz="1 0 0"/>
     <limit effort="0" lower="0" upper="0" velocity="0"/>
-    <dynamics damping="0.2" friction="0.02"/>
+    <dynamics damping="0.2" friction="0.02"/> -->
   </joint>
   <link name="dummy_palm">
     <inertial>
@@ -627,13 +629,13 @@
       </geometry>
     </collision>
   </link>
-  <joint name="dummy_palm_gripper_joint" type="revolute">
+  <joint name="dummy_palm_gripper_joint" type="fixed">
     <parent link="dummy_palm"/>
     <child link="dummy_gripper"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
-    <axis xyz="1 0 0"/>
+    <!-- <axis xyz="1 0 0"/>
     <limit effort="0" lower="0" upper="0" velocity="0"/>
-    <dynamics damping="0.2" friction="0.02"/>
+    <dynamics damping="0.2" friction="0.02"/> -->
   </joint>
   <link name="dummy_gripper">
     <inertial>

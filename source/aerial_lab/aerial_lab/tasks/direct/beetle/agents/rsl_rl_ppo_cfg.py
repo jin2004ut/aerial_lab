@@ -12,17 +12,17 @@ from isaaclab_rl.rsl_rl import (
 
 
 @configclass
-class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 2000
-    save_interval = 100
-    experiment_name = "quadcopter_direct"
+    save_interval = 200
+    experiment_name = "beetle_direct"
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_obs_normalization=False,
         critic_obs_normalization=False,
-        actor_hidden_dims=[64, 64],
-        critic_hidden_dims=[64, 64],
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(

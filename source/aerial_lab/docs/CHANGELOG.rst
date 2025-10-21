@@ -7,3 +7,9 @@ Changelog
 
 * Set up basic project structure and documentation
 * Added robotics urdf files and set visualization tools
+
+TODO
+---------
+
+[ ] Add ServoMotorCfg for gimbal joints
+[ ] Add RotorActuatorCfg for rotor with prapoller dynamics

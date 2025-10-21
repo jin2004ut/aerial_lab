@@ -231,7 +231,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor1" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent1"/>
     <child link="thrust1"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -335,7 +335,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor2" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent2"/>
     <child link="thrust2"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -439,7 +439,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor3" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent3"/>
     <child link="thrust3"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -543,7 +543,7 @@
     #### rotor joint (virtual) ####
 
   <joint name="rotor4" type="continuous">
-    <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="rotor_parent4"/>
     <child link="thrust4"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
