@@ -8,9 +8,10 @@
 from __future__ import annotations
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg, DCMotorCfg
+
 # from aerial_lab.actuators import RotorActuatorCfg
 from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
+from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
 
 ##
@@ -131,7 +132,7 @@ BEETLE_CFG = ArticulationCfg(
             stiffness=0.0,
             damping=0.5,
             friction=0.0,
-            dynamic_friction=0.0
+            dynamic_friction=0.0,
         ),
         "servos": DCMotorCfg(
             joint_names_expr=["gimbal.*"],
@@ -141,7 +142,7 @@ BEETLE_CFG = ArticulationCfg(
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
-        )
+        ),
     },
 )
 
@@ -199,7 +200,7 @@ BEETLE_OMNI_CFG = ArticulationCfg(
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
-        )
+        ),
     },
 )
 
@@ -273,7 +274,7 @@ DRAGON_CFG = ArticulationCfg(
             stiffness=0.0,
             damping=0.5,
             friction=0.0,
-            dynamic_friction=0.0
+            dynamic_friction=0.0,
         ),
         "gimbal": DCMotorCfg(
             joint_names_expr=["gimbal.*"],
@@ -292,7 +293,7 @@ DRAGON_CFG = ArticulationCfg(
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
-        )
+        ),
     },
 )
 
@@ -363,7 +364,7 @@ SPIDAR_CFG = ArticulationCfg(
             stiffness=0.0,
             damping=0.5,
             friction=0.0,
-            dynamic_friction=0.0
+            dynamic_friction=0.0,
         ),
         "gimbal": DCMotorCfg(
             joint_names_expr=["gimbal.*"],
@@ -382,7 +383,7 @@ SPIDAR_CFG = ArticulationCfg(
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
-        )
+        ),
     },
 )
 """Configuration for the Crazyflie quadcopter."""

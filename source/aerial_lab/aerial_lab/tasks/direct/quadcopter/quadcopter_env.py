@@ -250,4 +250,4 @@ class QuadcopterEnv(DirectRLEnv):
 
     def _debug_vis_callback(self, event):
         # update the markers
-        self.goal_pos_visualizer.visualize(self._desired_pos_w) 
+        self.goal_pos_visualizer.visualize(self._desired_pos_w)

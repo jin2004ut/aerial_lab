@@ -11,23 +11,20 @@ from collections.abc import Sequence
 import gymnasium as gym
 import isaaclab.sim as sim_utils
 import torch
-from isaaclab.assets import Articulation
-from isaaclab.envs import DirectRLEnv
-from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
-from isaaclab.utils.math import sample_uniform
-from isaaclab.terrains import TerrainImporterCfg
-from isaaclab.sensors import ContactSensorCfg, ContactSensor
-
-from isaaclab.assets import ArticulationCfg
-from isaaclab.envs import DirectRLEnvCfg
-from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sim import SimulationCfg
-from isaaclab.utils import configclass
-from aerial_lab.assets.aerialrobot import SPIDAR_CFG  # isort: skip
-from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort: skip
+from isaaclab.assets import Articulation, ArticulationCfg
+from isaaclab.envs import DirectRLEnv, DirectRLEnvCfg
 from isaaclab.envs.ui import BaseEnvWindow
 from isaaclab.markers import VisualizationMarkers
-from isaaclab.utils.math import subtract_frame_transforms
+from isaaclab.scene import InteractiveSceneCfg
+from isaaclab.sensors import ContactSensor, ContactSensorCfg
+from isaaclab.sim import SimulationCfg
+from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
+from isaaclab.terrains import TerrainImporterCfg
+from isaaclab.utils import configclass
+from isaaclab.utils.math import sample_uniform, subtract_frame_transforms
+
+from aerial_lab.assets.aerialrobot import SPIDAR_CFG  # isort: skip
+from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort: skip
 
 
 class PoseTrackingEnvWindow(BaseEnvWindow):
@@ -126,9 +123,9 @@ class SpidarEnvCfg(DirectRLEnvCfg):
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
     body_contact_sensor: ContactSensorCfg = ContactSensorCfg(
-        prim_path="/World/envs/env_.*/Robot/root",   # Bind to the robot root link
+        prim_path="/World/envs/env_.*/Robot/root",  # Bind to the robot root link
         history_length=1,
-        update_period=0,                   # Update every physics step
+        update_period=0,  # Update every physics step
         track_air_time=True,
         debug_vis=True,
         # filter_prim_paths_expr=["/World/ground"],  # Only track contacts with the ground
@@ -154,7 +151,9 @@ class SpidarEnv(DirectRLEnv):
 
         # Total thrust and moment applied to the base of the quadcopter
         self._actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device)
-        self._last_actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device)
+        self._last_actions = torch.zeros(
+            self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device
+        )
         self._target_thrust_force = torch.zeros(self.num_envs, self.cfg.rotor_num, device=self.device)
         self._target_gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
         self._target_joint_pos = torch.zeros(self.num_envs, self.cfg.joint_num, device=self.device)
@@ -223,8 +222,12 @@ class SpidarEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self._last_actions = self._actions.clone()
         self._actions = actions.clone().clamp(-1.0, 1.0)  # TODO: check action limits
-        self._target_gimbal_pos = self._actions[:, :self.cfg.gimbal_num] * self.cfg.gimbal_limit  # scale to [-1.57, 1.57] rad
-        self._target_thrust_force = (self._actions[:, self.cfg.gimbal_num :] + 1.0) / 2.0 * self.cfg.thrust_limit  # shape: (N, 4)
+        self._target_gimbal_pos = (
+            self._actions[:, : self.cfg.gimbal_num] * self.cfg.gimbal_limit
+        )  # scale to [-1.57, 1.57] rad
+        self._target_thrust_force = (
+            (self._actions[:, self.cfg.gimbal_num :] + 1.0) / 2.0 * self.cfg.thrust_limit
+        )  # shape: (N, 4)
         # self._target_rotor_torque = (
         #     self.cfg.thrust_to_torque_ratio
         #     * self._target_thrust_force
@@ -305,7 +308,7 @@ class SpidarEnv(DirectRLEnv):
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
         distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
-        distance_to_goal_weight = torch.exp(- torch.square(distance_to_goal))
+        distance_to_goal_weight = torch.exp(-torch.square(distance_to_goal))
         reach_lin_vel = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=-1) * distance_to_goal_weight
         reach_ang_vel = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=-1) * distance_to_goal_weight
         thrust_power = torch.sum(torch.square(self._target_thrust_force), dim=1)
@@ -330,7 +333,7 @@ class SpidarEnv(DirectRLEnv):
         # import ipdb; ipdb.set_trace()
         # died = torch.linalg.norm(self._body_contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1) > 0.1
         crash = torch.linalg.norm(self._body_contact_sensor.data.net_forces_w.squeeze(1), dim=-1) > 0.1
-        drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1 , self._robot.data.root_pos_w[:, 2] > 5.0)
+        drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1, self._robot.data.root_pos_w[:, 2] > 5.0)
         died = torch.logical_or(crash, drift)
         #################################################
         # print(torch.linalg.norm(self._body_contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1))  # die if in contact with the ground

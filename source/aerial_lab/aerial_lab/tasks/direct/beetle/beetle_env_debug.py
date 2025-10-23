@@ -200,12 +200,10 @@ class BeetleEnv(DirectRLEnv):
 
     def _pre_physics_step(self, actions: torch.Tensor):
         self._actions = actions.clone().clamp(-1.0, 1.0)
-        self._gimbal_pos = self._actions[:, :self.cfg.gimbal_num] * 1.57  # scale to [-1.57, 1.57] rad
+        self._gimbal_pos = self._actions[:, : self.cfg.gimbal_num] * 1.57  # scale to [-1.57, 1.57] rad
         self._thrust = self._actions[:, self.cfg.gimbal_num :]  # shape: (N, 4)
         self._rotor_torque = (
-            -self.cfg.thrust_to_torque_ratio
-            * self._thrust
-            * torch.tensor(self.cfg.rotor_direction, device=self.device)
+            -self.cfg.thrust_to_torque_ratio * self._thrust * torch.tensor(self.cfg.rotor_direction, device=self.device)
         )
 
     def _apply_action(self):
@@ -214,7 +212,9 @@ class BeetleEnv(DirectRLEnv):
         target_thrust = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
         target_thrust[:, :, 2] = self._thrust
         target_torque = torch.zeros_like(target_thrust)
-        self._robot.set_external_force_and_torque(forces=target_thrust, torques=target_torque, body_ids=self._thrust_ids)
+        self._robot.set_external_force_and_torque(
+            forces=target_thrust, torques=target_torque, body_ids=self._thrust_ids
+        )
 
     def _get_observations(self) -> dict:
         # import ipdb; ipdb.set_trace()

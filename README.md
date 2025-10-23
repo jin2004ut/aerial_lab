@@ -3,7 +3,7 @@
 ## Overview
 
 ### Available Environments
-| S. No. |         Task Name       |      Entry Point   |         Config        |  
+| S. No. |         Task Name       |      Entry Point   |         Config        |
 |--------|-------------------------|--------------------|-----------------------|
 |   1    | Aerial-Lab-Template-Direct-v0            | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env:AerialLabEnv               | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env_cfg:AerialLabEnvCfg               |
 |   2    | Aerial-Lab-Template-Marl-Direct-v0       | aerial_lab.tasks.direct.aerial_lab_marl.aerial_lab_marl_env:AerialLabMarlEnv | aerial_lab.tasks.direct.aerial_lab_marl.aerial_lab_marl_env_cfg:AerialLabMarlEnvCfg |

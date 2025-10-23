@@ -42,7 +42,7 @@ def main():
     # downsample number of environments for random agent
     if args_cli.num_envs is not None:
         args_cli.num_envs
-    else :
+    else:
         args_cli.num_envs = 16
     env_cfg = parse_env_cfg(
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
