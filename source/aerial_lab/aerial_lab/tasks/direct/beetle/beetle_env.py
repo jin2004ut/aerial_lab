@@ -22,7 +22,7 @@ from isaaclab.utils.math import subtract_frame_transforms
 # Pre-defined configs
 ##
 from isaaclab.markers import CUBOID_MARKER_CFG  # isort: skip
-from aerial_lab.assets.aerialrobot import *  # isort: skip
+from aerial_lab.assets.aerialrobot import BEETLE_OMNI_CFG, MINI_QUADROTOR_CFG  # isort: skip
 from isaaclab.sensors import ContactSensorCfg, ContactSensor  # isort: skip
 
 
@@ -254,7 +254,7 @@ class BeetleEnv(DirectRLEnv):
         # net_contact_forces_l2m = torch.linalg.norm(self._contact_sensor.data.net_forces_w_history, dim=-1)
         # died = torch.logical_or(
         #     self._robot.data.root_pos_w[:, 2] < 0.2,
-        #     net_contact_forces_l2m > self.cfg.contact_force_threshold
+        #     net_contnet_forces_wact_forces_l2m > self.cfg.contact_force_threshold
         # )
         died = self._robot.data.root_pos_w[:, 2] < 0.2
         # died = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)

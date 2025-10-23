@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg,DCMotorCfg
+from isaaclab.actuators import ImplicitActuatorCfg, DCMotorCfg
 # from aerial_lab.actuators import RotorActuatorCfg
 from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
 from isaaclab.assets import ArticulationCfg
@@ -71,6 +71,7 @@ BEETLE_CFG = ArticulationCfg(
         fix_base=False,
         merge_fixed_joints=True,
         replace_cylinders_with_capsules=False,
+        # TODO: fix the base_link.dae visual mesh
         asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle/beetle.urdf",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -84,12 +85,21 @@ BEETLE_CFG = ArticulationCfg(
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
             solver_position_iteration_count=4,
-            solver_velocity_iteration_count=0,
+            solver_velocity_iteration_count=2,
             sleep_threshold=0.005,
             stabilization_threshold=0.001,
         ),
+        # TODO: change joint driver according to the real robot
+        # joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
+        #     gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
+        # ),
         joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
-            gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
+            gains={
+                "rotor.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+                "gimbal.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+            },
+            target_type={"rotor.*": "velocity", "gimbal.*": "position"},
+            drive_type={"rotor.*": "force", "gimbal.*": "force"},
         ),
         copy_from_source=False,
     ),
@@ -106,11 +116,22 @@ BEETLE_CFG = ArticulationCfg(
     soft_joint_pos_limit_factor=0.9,
     actuators={
         # ImplicitActuatorCfg: stiffness and damping are set into simulation engine directly
-        "rotor": ImplicitActuatorCfg(
+        # "rotor": DCMotorCfg(  # test for parameter setting
+        #     joint_names_expr=["rotor.*"],
+        #     effort_limit=10.0,
+        #     velocity_limit=100.0,
+        #     saturation_effort=10.0,
+        #     stiffness=1.0,
+        #     damping=0.1,
+        # ),
+        "rotor": ImplicitActuatorCfg(  # test for parameter setting
             joint_names_expr=["rotor.*"],
+            effort_limit=100.0,
             velocity_limit=100.0,
             stiffness=0.0,
-            damping=150.0,
+            damping=0.5,
+            friction=0.0,
+            dynamic_friction=0.0
         ),
         "servos": DCMotorCfg(
             joint_names_expr=["gimbal.*"],

@@ -56,14 +56,23 @@
     // This enables python language server. Seems to work slightly better than jedi:
     "python.languageServer": "Pylance",
     // We use "black" as a formatter:
-    "python.formatting.provider": "black",
-    "python.formatting.blackArgs": ["--line-length", "120"],
-    // Use flake8 for linting
-    "python.linting.pylintEnabled": false,
-    "python.linting.flake8Enabled": true,
-    "python.linting.flake8Args": [
-        "--max-line-length=120"
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.linting.enabled": false,
+    "python.analysis.linting.flake8Enabled": true,
+    "flake8.args": [
+        "--max-line-length=120",
+        "--config=${workspaceFolder}/.flake8"
     ],
+    // "python.formatting.provider": "black",
+    // "python.formatting.blackArgs": ["--line-length", "120"],
+    // // Use flake8 for linting
+    // "python.linting.pylintEnabled": false,
+    // "python.linting.flake8Enabled": true,
+    // "python.linting.flake8Args": [
+    //     "--max-line-length=120",
+    //     "--config=${workspaceFolder}/.flake8"
+    // ],
     // Use docstring generator
     "autoDocstring.docstringFormat": "google",
     "autoDocstring.guessTypes": true,
