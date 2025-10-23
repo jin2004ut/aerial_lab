@@ -70,7 +70,7 @@ MINI_QUADROTOR_CFG = ArticulationCfg(
 BEETLE_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         fix_base=False,
-        merge_fixed_joints=True,
+        merge_fixed_joints=False,
         replace_cylinders_with_capsules=False,
         # TODO: fix the base_link.dae visual mesh
         asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle/beetle.urdf",
@@ -110,8 +110,7 @@ BEETLE_CFG = ArticulationCfg(
             ".*": 0.0,
         },
         joint_vel={
-            "rotor.*": 0.0,
-            "gimbal.*": 0.0,
+            ".*": 0.0,
         },
     ),
     soft_joint_pos_limit_factor=0.9,
@@ -134,10 +133,10 @@ BEETLE_CFG = ArticulationCfg(
             friction=0.0,
             dynamic_friction=0.0,
         ),
-        "servos": DCMotorCfg(
+        "gimbal": DCMotorCfg(
             joint_names_expr=["gimbal.*"],
-            effort_limit=1.0,
-            saturation_effort=1.0,
+            effort_limit=2.0,
+            saturation_effort=2.0,
             velocity_limit=10.0,
             stiffness=5.0,
             damping=0.1,

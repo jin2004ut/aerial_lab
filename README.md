@@ -32,7 +32,7 @@ It allows you to develop in an isolated environment, outside of the core Isaac L
 ## Installation
 
 ### Nvidia Driver
-Older version nvidia-driver cannot support high version cuda. It is recommanded to install your gpu driber more than `570`
+Older version nvidia-driver cannot support high version cuda. It is recommended to install your gpu driber more than `570`
 
 ### Isaac Lab
 Install Isaac Lab by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).

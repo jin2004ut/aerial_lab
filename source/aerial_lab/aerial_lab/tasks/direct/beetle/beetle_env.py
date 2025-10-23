@@ -16,7 +16,7 @@ from isaaclab.envs import DirectRLEnv, DirectRLEnvCfg
 from isaaclab.envs.ui import BaseEnvWindow
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensor, ContactSensorCfg
+from isaaclab.sensors import ContactSensor, ContactSensorCfg, Imu, ImuCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.terrains import TerrainImporterCfg
@@ -51,7 +51,7 @@ class PoseTrackingEnvWindow(BaseEnvWindow):
 @configclass
 class BeetleEnvCfg(DirectRLEnvCfg):
     # env
-    decimation = 2
+    decimation = 4
     episode_length_s = 5.0
     # - spaces definition
     rotor_num = 4
@@ -103,7 +103,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     # simulation
     sim: SimulationCfg = SimulationCfg(
-        dt=1 / 100,
+        dt=1 / 200,
         render_interval=decimation,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -128,6 +128,18 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         debug_vis=True,
         # filter_prim_paths_expr=["/World/ground"],  # Only track contacts with the ground
         filter_prim_paths_expr=[terrain.prim_path],  # Only track contacts with the ground
+    )
+
+    # https://isaac-sim.github.io/IsaacLab/main/source/api/lab/isaaclab.sensors.html#inertia-measurement-unit
+    imu_sensor: ImuCfg = ImuCfg(
+        prim_path="/World/envs/env_.*/Robot/root",
+        update_period=0,
+        history_length=1,
+        offset=ImuCfg.OffsetCfg(
+            pos=(0.0, 0.0, 0.0),
+            rot=(1.0, 0.0, 0.0, 0.0),  # w, x, y, z
+        ),
+        debug_vis=True,
     )
 
 
@@ -183,12 +195,16 @@ class BeetleEnv(DirectRLEnv):
         self.set_debug_vis(self.cfg.debug_vis)
 
     def _setup_scene(self):
+        # # # add articulation to scene
         self._robot = Articulation(self.cfg.robot_cfg)
-
+        self.scene.articulations["robot"] = self._robot
+        # # # setup IMU sensor
+        self._imu_sensor = Imu(self.cfg.imu_sensor)
+        self.scene.sensors["imu_sensor"] = self._imu_sensor
+        # # # setup contact sensor
         self._contact_sensor = ContactSensor(self.cfg.contact_sensor)
         self.scene.sensors["contact_sensor"] = self._contact_sensor
-        # add ground plane
-        # spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
+        # # # add ground plane
         self.cfg.terrain.num_envs = self.scene.cfg.num_envs
         self.cfg.terrain.env_spacing = self.scene.cfg.env_spacing
         self._terrain = self.cfg.terrain.class_type(self.cfg.terrain)
@@ -197,8 +213,6 @@ class BeetleEnv(DirectRLEnv):
         # we need to explicitly filter collisions for CPU simulation
         if self.device == "cpu":
             self.scene.filter_collisions(global_prim_paths=[])
-        # add articulation to scene
-        self.scene.articulations["robot"] = self._robot
         # add lights
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
@@ -247,10 +261,14 @@ class BeetleEnv(DirectRLEnv):
         body_force = torch.zeros(self.num_envs, 1, 3, device=self.device)
         body_torque = torch.zeros(self.num_envs, 1, 3, device=self.device)
         body_torque[:, 0, 2] = torch.sum(self._target_rotor_torque, dim=1)
-        self._robot.set_external_force_and_torque(forces=body_force, torques=body_torque, body_ids=self._body_id)
-        self._robot.set_external_force_and_torque(
-            forces=target_thrust, torques=target_torque, body_ids=self._thrust_ids[0]
-        )
+        # self._robot.set_external_force_and_torque(forces=body_force, torques=body_torque, body_ids=self._body_id)
+        # self._robot.set_external_force_and_torque(
+        #     forces=target_thrust, torques=target_torque, body_ids=self._thrust_ids[0]
+        # )
+        applied_thrust = torch.cat([target_thrust, body_force], dim=1)
+        applied_torque = torch.cat([target_torque, body_torque], dim=1)
+        applied_ids = self._thrust_ids[0] + self._body_id
+        self._robot.set_external_force_and_torque(forces=applied_thrust, torques=applied_torque, body_ids=applied_ids)
 
     def _get_observations(self) -> dict:
         desired_pos_b, _ = subtract_frame_transforms(
