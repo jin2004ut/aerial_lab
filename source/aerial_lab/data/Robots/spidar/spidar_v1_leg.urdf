@@ -24,7 +24,7 @@
   #### LINK ####
 
 
-    #### dummy root link for KDL ####
+  #### dummy root link for KDL ####
 
   <link name="root">
     <inertial>
@@ -660,7 +660,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>
@@ -891,7 +891,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>
@@ -1185,7 +1185,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>
@@ -1416,7 +1416,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>
@@ -1710,7 +1710,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>
@@ -1941,7 +1941,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>
@@ -2235,7 +2235,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>
@@ -2466,7 +2466,7 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae"/>
+        <mesh filename="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae"/>
       </geometry>
     </visual>
   </link>

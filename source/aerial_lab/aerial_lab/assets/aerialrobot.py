@@ -202,4 +202,187 @@ BEETLE_OMNI_CFG = ArticulationCfg(
         )
     },
 )
+
+DRAGON_CFG = ArticulationCfg(
+    spawn=sim_utils.UrdfFileCfg(
+        fix_base=False,
+        merge_fixed_joints=False,
+        replace_cylinders_with_capsules=False,
+        # TODO: fix the base_link.dae visual mesh
+        asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/dragon/dragon.urdf",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=10.0,
+            enable_gyroscopic_forces=True,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=False,
+            solver_position_iteration_count=4,
+            solver_velocity_iteration_count=2,
+            sleep_threshold=0.005,
+            stabilization_threshold=0.001,
+        ),
+        # TODO: change joint driver according to the real robot
+        joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
+            gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
+        ),
+        # joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
+        #     gains={
+        #         "rotor.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+        #         "gimbal.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+        #     },
+        #     target_type={"rotor.*": "velocity", "gimbal.*": "position"},
+        #     drive_type={"rotor.*": "force", "gimbal.*": "force"},
+        # ),
+        copy_from_source=False,
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 1.0),
+        joint_pos={
+            "rotor.*": 0.0,
+            "gimbal.*": 0.0,
+            "joint.*_yaw": 1.0,
+            "joint.*_pitch": 0.0,
+        },
+        joint_vel={
+            "rotor.*": 0.0,
+            "gimbal.*": 0.0,
+            "joint.*_yaw": 0.0,
+            "joint.*_pitch": 0.0,
+        },
+    ),
+    soft_joint_pos_limit_factor=0.9,
+    actuators={
+        # ImplicitActuatorCfg: stiffness and damping are set into simulation engine directly
+        # "rotor": DCMotorCfg(  # test for parameter setting
+        #     joint_names_expr=["rotor.*"],
+        #     effort_limit=10.0,
+        #     velocity_limit=100.0,
+        #     saturation_effort=10.0,
+        #     stiffness=1.0,
+        #     damping=0.1,
+        # ),
+        "rotor": ImplicitActuatorCfg(  # test for parameter setting
+            joint_names_expr=["rotor.*"],
+            effort_limit=100.0,
+            velocity_limit=100.0,
+            stiffness=0.0,
+            damping=0.5,
+            friction=0.0,
+            dynamic_friction=0.0
+        ),
+        "gimbal": DCMotorCfg(
+            joint_names_expr=["gimbal.*"],
+            effort_limit=1.0,
+            saturation_effort=1.0,
+            velocity_limit=10.0,
+            stiffness=5.0,
+            damping=0.1,
+            friction=0.0,
+        ),
+        "joint": DCMotorCfg(
+            joint_names_expr=["joint.*"],
+            effort_limit=1.0,
+            saturation_effort=1.0,
+            velocity_limit=10.0,
+            stiffness=5.0,
+            damping=0.1,
+            friction=0.0,
+        )
+    },
+)
+
+SPIDAR_CFG = ArticulationCfg(
+    spawn=sim_utils.UrdfFileCfg(
+        fix_base=False,
+        merge_fixed_joints=False,
+        replace_cylinders_with_capsules=False,
+        root_link_name="fc",
+        # TODO: fix the base_link.dae visual mesh
+        asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/spidar/spidar_v1_leg.urdf",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=10.0,
+            enable_gyroscopic_forces=True,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=False,
+            solver_position_iteration_count=4,
+            solver_velocity_iteration_count=2,
+            sleep_threshold=0.005,
+            stabilization_threshold=0.001,
+        ),
+        # TODO: change joint driver according to the real robot
+        joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
+            gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
+        ),
+        # joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
+        #     gains={
+        #         "rotor.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+        #         "gimbal.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+        #     },
+        #     target_type={"rotor.*": "velocity", "gimbal.*": "position"},
+        #     drive_type={"rotor.*": "force", "gimbal.*": "force"},
+        # ),
+        copy_from_source=False,
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.4),
+        joint_pos={
+            ".*": 0.0,
+        },
+        joint_vel={
+            "rotor.*": 0.0,
+            "gimbal.*": 0.0,
+            "joint.*": 0.0,
+        },
+    ),
+    soft_joint_pos_limit_factor=0.9,
+    actuators={
+        # ImplicitActuatorCfg: stiffness and damping are set into simulation engine directly
+        # "rotor": DCMotorCfg(  # test for parameter setting
+        #     joint_names_expr=["rotor.*"],
+        #     effort_limit=10.0,
+        #     velocity_limit=100.0,
+        #     saturation_effort=10.0,
+        #     stiffness=1.0,
+        #     damping=0.1,
+        # ),
+        "rotor": ImplicitActuatorCfg(  # test for parameter setting
+            joint_names_expr=["rotor.*"],
+            effort_limit=100.0,
+            velocity_limit=100.0,
+            stiffness=0.0,
+            damping=0.5,
+            friction=0.0,
+            dynamic_friction=0.0
+        ),
+        "gimbal": DCMotorCfg(
+            joint_names_expr=["gimbal.*"],
+            effort_limit=1.0,
+            saturation_effort=1.0,
+            velocity_limit=10.0,
+            stiffness=5.0,
+            damping=0.1,
+            friction=0.0,
+        ),
+        "joint": DCMotorCfg(
+            joint_names_expr=["joint.*"],
+            effort_limit=1.0,
+            saturation_effort=1.0,
+            velocity_limit=10.0,
+            stiffness=5.0,
+            damping=0.1,
+            friction=0.0,
+        )
+    },
+)
 """Configuration for the Crazyflie quadcopter."""

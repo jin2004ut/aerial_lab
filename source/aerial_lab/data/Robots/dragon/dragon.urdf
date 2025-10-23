@@ -114,7 +114,7 @@
   </link>
   <!-- rotor -->
   <joint name="rotor1" type="continuous">
-    <limit effort="100.0" lower="2" upper="30" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="gimbal1_pitch_module"/>
     <child link="thrust1"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -364,7 +364,7 @@
   </link>
   <!-- rotor -->
   <joint name="rotor2" type="continuous">
-    <limit effort="100.0" lower="2" upper="30" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="gimbal2_pitch_module"/>
     <child link="thrust2"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -613,7 +613,7 @@
   </link>
   <!-- rotor -->
   <joint name="rotor3" type="continuous">
-    <limit effort="100.0" lower="2" upper="30" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="gimbal3_pitch_module"/>
     <child link="thrust3"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -849,7 +849,7 @@
   </link>
   <!-- rotor -->
   <joint name="rotor4" type="continuous">
-    <limit effort="100.0" lower="2" upper="30" velocity="0.5"/>
+    <limit effort="100.0" velocity="0.5"/>
     <parent link="gimbal4_pitch_module"/>
     <child link="thrust4"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>

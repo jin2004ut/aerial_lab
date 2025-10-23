@@ -44,7 +44,7 @@ def main():
     env_cfg = parse_env_cfg(
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
-    env_cfg.scene.env_spacing = 0.8
+    env_cfg.scene.env_spacing = 2.5
     # create environment
     env = gym.make(args_cli.task, cfg=env_cfg)
 
@@ -65,8 +65,8 @@ def main():
             # actions[:, 0] = gimbal_target  # set gimbal 1 target
 
             # thrust_target = 200 * torch.sin(torch.tensor(counter / 50.0))  # constant thrust
-            thrust_target = torch.full((1, 4), 0.1, device=env.unwrapped.device)
-            actions[:, 4:8] = thrust_target  # set thrust targets
+            # thrust_target = torch.full((1, 4), 0.1, device=env.unwrapped.device)
+            # actions[:, 4:8] = thrust_target  # set thrust targets
             # apply actions
             env.step(actions)
 

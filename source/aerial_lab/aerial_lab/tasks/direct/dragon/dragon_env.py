@@ -23,7 +23,7 @@ from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
-from aerial_lab.assets.aerialrobot import BEETLE_CFG, MINI_QUADROTOR_CFG  # isort: skip
+from aerial_lab.assets.aerialrobot import DRAGON_CFG, MINI_QUADROTOR_CFG  # isort: skip
 from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort: skip
 from isaaclab.envs.ui import BaseEnvWindow
 from isaaclab.markers import VisualizationMarkers
@@ -31,9 +31,9 @@ from isaaclab.utils.math import subtract_frame_transforms
 
 
 class PoseTrackingEnvWindow(BaseEnvWindow):
-    """Window manager for the Beetle environment."""
+    """Window manager for the Dragon environment."""
 
-    def __init__(self, env: AerialBeetleEnv, window_name: str = "IsaacLab"):
+    def __init__(self, env: DragonEnv, window_name: str = "IsaacLab"):
         """Initialize the window.
 
         Args:
@@ -48,29 +48,31 @@ class PoseTrackingEnvWindow(BaseEnvWindow):
                 with self.ui_window_elements["debug_vstack"]:
                     # add command manager visualization
                     self._create_debug_vis_ui_element("targets", self.env)
-                    # self._create_debug_vis_ui_element("contact_sensor", self.env)
+                    # self._create_debug_vis_ui_element("body_contact_sensor", self.env)
 
 
 @configclass
-class AerialBeetleEnvCfg(DirectRLEnvCfg):
+class DragonEnvCfg(DirectRLEnvCfg):
     # env
     decimation = 2
-    episode_length_s = 20.0
-    # - spaces definition
+    episode_length_s = 5.0
+    # # # # spaces definition
     rotor_num = 4
-    gimbal_num = 4
-    # 4 gimbals, 4 rotors
-    action_space = 8
+    gimbal_num = 8
+    joint_num = 6
+    # 4 rotors, 8 gimbals, 6 joints
+    action_space = rotor_num + gimbal_num + joint_num
+    # # # # observation space:
     # linear velocity (3)
     # angular velocity (3)
     # projected gravity (3)
     # distance_to_goal (local frame) (3)
     # servo positions (4)
-    # last action (8)
-    observation_space = 24
+    # last action ()
+    observation_space = 12 + gimbal_num + joint_num + action_space
     thrust_to_torque_ratio = 0.0165
     # rotor_direction = [1, -1, 1, -1]
-    rotor_direction = [1, 1, 1, 1]
+    rotor_direction = [1, 1, 1, 1, -1, -1, -1, -1]
     contact_force_threshold = 0.1
 
     thrust_limit = 16.0  # N
@@ -118,12 +120,12 @@ class AerialBeetleEnvCfg(DirectRLEnvCfg):
     )
 
     # robot_cfg: ArticulationCfg = MINI_QUADROTOR_CFG.replace(prim_path="/World/envs/env_.*/Robot")
-    robot_cfg: ArticulationCfg = BEETLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+    robot_cfg: ArticulationCfg = DRAGON_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
-    contact_sensor: ContactSensorCfg = ContactSensorCfg(
+    body_contact_sensor: ContactSensorCfg = ContactSensorCfg(
         prim_path="/World/envs/env_.*/Robot/root",   # Bind to the robot root link
         history_length=1,
         update_period=0,                   # Update every physics step
@@ -134,10 +136,10 @@ class AerialBeetleEnvCfg(DirectRLEnvCfg):
     )
 
 
-class AerialBeetleEnv(DirectRLEnv):
-    cfg: AerialBeetleEnvCfg
+class DragonEnv(DirectRLEnv):
+    cfg: DragonEnvCfg
 
-    def __init__(self, cfg: AerialBeetleEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(self, cfg: DragonEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
 
         # Total thrust and moment applied to the base of the quadcopter
@@ -166,8 +168,10 @@ class AerialBeetleEnv(DirectRLEnv):
         self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm()
         self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
         self._thrust_ids = self._robot.find_bodies("thrust.*")
+
         self._gimbal_ids = self._robot.find_joints("gimbal.*")
         self._rotor_ids = self._robot.find_joints("rotor.*")
+        self._joint_ids = self._robot.find_joints("joint.*")
 
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print("Beetle robot link list: ")
@@ -179,6 +183,7 @@ class AerialBeetleEnv(DirectRLEnv):
         print("Thrust IDs: ", self._thrust_ids)
         print("Gimbal IDs: ", self._gimbal_ids)
         print("Rotor IDs: ", self._rotor_ids)
+        print("Joint IDs: ", self._joint_ids)
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
         self.set_debug_vis(self.cfg.debug_vis)
@@ -186,8 +191,8 @@ class AerialBeetleEnv(DirectRLEnv):
     def _setup_scene(self):
         self._robot = Articulation(self.cfg.robot_cfg)
 
-        self._contact_sensor = ContactSensor(self.cfg.contact_sensor)
-        self.scene.sensors["contact_sensor"] = self._contact_sensor
+        self._body_contact_sensor = ContactSensor(self.cfg.body_contact_sensor)
+        self.scene.sensors["body_contact_sensor"] = self._body_contact_sensor
         # add ground plane
         # spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
         self.cfg.terrain.num_envs = self.scene.cfg.num_envs
@@ -209,11 +214,11 @@ class AerialBeetleEnv(DirectRLEnv):
         self._actions = actions.clone().clamp(-1.0, 1.0)  # TODO: check action limits
         self._target_gimbal_pos = self._actions[:, :self.cfg.gimbal_num] * self.cfg.gimbal_limit  # scale to [-1.57, 1.57] rad
         self._target_thrust_force = (self._actions[:, self.cfg.gimbal_num :] + 1.0) / 2.0 * self.cfg.thrust_limit  # shape: (N, 4)
-        self._target_rotor_torque = (
-            self.cfg.thrust_to_torque_ratio
-            * self._target_thrust_force
-            * torch.tensor(self.cfg.rotor_direction, device=self.device)
-        )
+        # self._target_rotor_torque = (
+        #     self.cfg.thrust_to_torque_ratio
+        #     * self._target_thrust_force
+        #     * torch.tensor(self.cfg.rotor_direction, device=self.device)
+        # )
         # self._target_thrust_force[:, :] = 0
         # print("Rotor velocities: ", self._rotor_vel[0])
         # print("Rotor velocities: ", self._robot.data.joint_vel[:, self._rotor_ids[0]][0])
@@ -233,19 +238,19 @@ class AerialBeetleEnv(DirectRLEnv):
         # self._robot.set_joint_position_target(target_position, self._rotor_ids[0])
         # print("Applying rotor torques: ", self._target_rotor_torque[0])
         # print("Applying rotor thrusts: ", self._target_thrust_force[0])
-        target_thrust = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
-        target_thrust[:, :, 2] = self._target_thrust_force
-        target_torque = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
+        # target_thrust = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
+        # target_thrust[:, :, 2] = self._target_thrust_force
+        # target_torque = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
         # target_torque[:, :, 2] = self._target_rotor_torque
         # self._robot.set_external_force_and_torque(forces=target_thrust, body_ids=self._thrust_ids)
         # self._robot.set_external_force_and_torque(forces=target_thrust, torques=target_torque, body_ids=self._thrust_ids[0])
         # print("Thrust sequences applied: ", self._target_thrust_force[0])
         # print("Thrust sequences applied: ", self._thrust_ids)
-        body_force = torch.zeros(self.num_envs, 1, 3, device=self.device)
-        body_torque = torch.zeros(self.num_envs, 1, 3, device=self.device)
-        body_torque[:, 0, 2] = torch.sum(self._target_rotor_torque, dim=1)
-        self._robot.set_external_force_and_torque(forces=body_force, torques=body_torque, body_ids=self._body_id)
-        self._robot.set_external_force_and_torque(forces=target_thrust, torques=target_torque, body_ids=self._thrust_ids[0])
+        # body_force = torch.zeros(self.num_envs, 1, 3, device=self.device)
+        # body_torque = torch.zeros(self.num_envs, 1, 3, device=self.device)
+        # body_torque[:, 0, 2] = torch.sum(self._target_rotor_torque, dim=1)
+        # self._robot.set_external_force_and_torque(forces=body_force, torques=body_torque, body_ids=self._body_id)
+        # self._robot.set_external_force_and_torque(forces=target_thrust, torques=target_torque, body_ids=self._thrust_ids[0])
 
     def _get_observations(self) -> dict:
         desired_pos_b, _ = subtract_frame_transforms(
@@ -258,7 +263,7 @@ class AerialBeetleEnv(DirectRLEnv):
                 self._robot.data.projected_gravity_b,
                 desired_pos_b,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]],
-                # self._robot.data.joint_vel[:, self._rotor_ids[0]],
+                self._robot.data.joint_pos[:, self._joint_ids[0]],
                 self._last_actions,
             ),
             dim=-1,
@@ -277,7 +282,7 @@ class AerialBeetleEnv(DirectRLEnv):
                 self._robot.data.projected_gravity_b,
                 desired_pos_b,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]],
-                # self._robot.data.joint_vel[:, self._rotor_ids[0]],
+                self._robot.data.joint_pos[:, self._joint_ids[0]],
                 self._last_actions,
             ),
             dim=-1,
@@ -289,8 +294,9 @@ class AerialBeetleEnv(DirectRLEnv):
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
         distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
-        reach_lin_vel = torch.sum(torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=-1) / torch.exp(distance_to_goal.unsqueeze(-1)), dim=1)
-        reach_ang_vel = torch.sum(torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=-1) / torch.exp(distance_to_goal.unsqueeze(-1)), dim=1)
+        distance_to_goal_weight = torch.exp(- torch.square(distance_to_goal))
+        reach_lin_vel = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=-1) * distance_to_goal_weight
+        reach_ang_vel = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=-1) * distance_to_goal_weight
         thrust_power = torch.sum(torch.square(self._target_thrust_force), dim=1)
 
         rewards = {
@@ -311,15 +317,15 @@ class AerialBeetleEnv(DirectRLEnv):
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
         # import ipdb; ipdb.set_trace()
-        # died = torch.linalg.norm(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1) > 0.1
-        crash = torch.linalg.norm(self._contact_sensor.data.net_forces_w.squeeze(1), dim=-1) > 0.1
+        # died = torch.linalg.norm(self._body_contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1) > 0.1
+        crash = torch.linalg.norm(self._body_contact_sensor.data.net_forces_w.squeeze(1), dim=-1) > 0.1
         drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1 , self._robot.data.root_pos_w[:, 2] > 5.0)
         died = torch.logical_or(crash, drift)
         #################################################
-        # print(torch.linalg.norm(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1))  # die if in contact with the ground
-        # print(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
-        # print(self._contact_sensor.data.net_forces_w.squeeze(1))
-        # died = torch.zeros_like(time_out, dtype=torch.bool)
+        # print(torch.linalg.norm(self._body_contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1))  # die if in contact with the ground
+        # print(self._body_contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
+        # print(self._body_contact_sensor.data.net_forces_w.squeeze(1))
+        died = torch.zeros_like(time_out, dtype=torch.bool)
         return died, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):

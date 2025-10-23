@@ -331,7 +331,7 @@
     #### battery ####
     <xacro:if value="${battery == 1}">
       <xacro:extra_module name="bat${self}" parent="link${self}" visible="1"
-                          model_url="package://spidar/mesh/battery/ZIPPY-3000-25C-6S.dae">
+                          model_url="package://spidar/mesh/battery/ZIPPY_3000_25C_6S.dae">
         <xacro:if value="${link_type == 'general'}">
           <origin xyz="0.430 0.0 -0.039" rpy="${-pi/2} 0 0"/>
         </xacro:if>

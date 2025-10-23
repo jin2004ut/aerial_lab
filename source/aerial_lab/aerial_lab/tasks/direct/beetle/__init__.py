@@ -29,10 +29,10 @@ gym.register(
 
 gym.register(
     id="Aerial-Lab-Beetle-Direct-DEBUG-v0",
-    entry_point=f"{__name__}.aerial_beetle_env:AerialBeetleEnv",
+    entry_point=f"{__name__}.beetle_env_debug:BeetleEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.aerial_beetle_env:AerialBeetleEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.beetle_env_debug:BeetleEnvCfg",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:BeetlePPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",

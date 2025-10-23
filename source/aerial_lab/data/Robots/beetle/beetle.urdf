@@ -41,6 +41,7 @@
         <!-- <mesh filename="package://beetle/mesh/base_link.dae"/> -->
         <!-- <mesh filename="package://beetle/mesh/base_link.STL"/> -->
         <mesh filename="package://beetle/mesh/base_link_beetle_art.dae"/>
+        <!-- <mesh filename="package://beetle/mesh/converted_base_link.dae"/> -->
       </geometry>
     </visual>
     <collision>
