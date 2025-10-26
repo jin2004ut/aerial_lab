@@ -123,7 +123,7 @@ class DragonEnvCfg(DirectRLEnvCfg):
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
     body_contact_sensor: ContactSensorCfg = ContactSensorCfg(
-        prim_path="/World/envs/env_.*/Robot/root",  # Bind to the robot root link
+        prim_path="/World/envs/env_.*/Robot/base_link",  # Bind to the robot root link
         history_length=1,
         update_period=0,  # Update every physics step
         track_air_time=True,

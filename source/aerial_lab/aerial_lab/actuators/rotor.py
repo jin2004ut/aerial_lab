@@ -51,8 +51,10 @@ class Rotor:
                 Local-frame torque vector.
         """
         # Ensure correct shape
-        assert thrusts.shape == (self.env_num, self.rotor_num), \
-            f"Expected thrusts shape {(self.env_num, self.rotor_num)}, got {thrusts.shape}"
+        assert thrusts.shape == (
+            self.env_num,
+            self.rotor_num,
+        ), f"Expected thrusts shape {(self.env_num, self.rotor_num)}, got {thrusts.shape}"
 
         # TODO: thrust system model, maybe second order dynamics
 
@@ -70,6 +72,7 @@ class Rotor:
 
         return forces, torque
 
+
 # debug.py
 
 
@@ -83,7 +86,9 @@ def main():
         rotor_ids=torch.tensor([0, 1, 2, 3], dtype=torch.int32),
         device=torch.device("cpu"),
     )
-    import ipdb; ipdb.set_trace()
+    import ipdb
+
+    ipdb.set_trace()
     print("Rotor initialized.")
     print(f"Directions: {rotors.directions}")
     thrusts = torch.rand((32, 4), dtype=torch.float32)

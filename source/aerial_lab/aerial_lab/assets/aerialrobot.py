@@ -70,7 +70,11 @@ MINI_QUADROTOR_CFG = ArticulationCfg(
 BEETLE_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         fix_base=False,
+        root_link_name="base_link",
+        collider_type="convex_decomposition",  # convex_decomposition
         merge_fixed_joints=False,
+        collision_from_visuals=False,
+        self_collision=False,
         replace_cylinders_with_capsules=False,
         # TODO: fix the base_link.dae visual mesh
         asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle/beetle.urdf",
@@ -148,7 +152,11 @@ BEETLE_CFG = ArticulationCfg(
 BEETLE_OMNI_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         fix_base=False,
-        merge_fixed_joints=True,
+        root_link_name="base_link",
+        collider_type="convex_decomposition",  # convex_decomposition
+        merge_fixed_joints=False,
+        collision_from_visuals=False,
+        self_collision=False,
         replace_cylinders_with_capsules=False,
         asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle_omni/beetle_art_omni.urdf",
         activate_contact_sensors=True,
@@ -206,7 +214,11 @@ BEETLE_OMNI_CFG = ArticulationCfg(
 DRAGON_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         fix_base=False,
+        root_link_name="base_link",
+        collider_type="convex_decomposition",  # convex_decomposition
         merge_fixed_joints=False,
+        collision_from_visuals=False,
+        self_collision=False,
         replace_cylinders_with_capsules=False,
         # TODO: fix the base_link.dae visual mesh
         asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/dragon/dragon.urdf",
@@ -299,9 +311,12 @@ DRAGON_CFG = ArticulationCfg(
 SPIDAR_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         fix_base=False,
+        root_link_name="center_link",
+        collider_type="convex_decomposition",  # convex_decomposition
         merge_fixed_joints=False,
+        collision_from_visuals=False,
+        self_collision=False,
         replace_cylinders_with_capsules=False,
-        root_link_name="fc",
         # TODO: fix the base_link.dae visual mesh
         asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/spidar/spidar_v1_leg.urdf",
         activate_contact_sensors=True,
@@ -337,7 +352,17 @@ SPIDAR_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.4),
         joint_pos={
-            ".*": 0.0,
+            "^joint(?!.*_pitch$).*": 0.0,
+            "rotor.*": 0.0,
+            "gimbal.*": 0.0,
+            "joint1_pitch": -0.45,
+            "joint2_pitch": 1.45,
+            "joint3_pitch": -0.45,
+            "joint4_pitch": 1.45,
+            "joint5_pitch": -0.45,
+            "joint6_pitch": 1.45,
+            "joint7_pitch": -0.45,
+            "joint8_pitch": 1.45,
         },
         joint_vel={
             "rotor.*": 0.0,

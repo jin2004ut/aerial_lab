@@ -21,10 +21,17 @@ from isaaclab.sim import SimulationCfg
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.math import sample_uniform, subtract_frame_transforms
+from isaaclab.utils.math import (
+    normalize,
+    quat_from_angle_axis,
+    quat_from_euler_xyz,
+    quat_mul,
+    sample_uniform,
+    subtract_frame_transforms,
+)
 
 from aerial_lab.assets.aerialrobot import SPIDAR_CFG  # isort: skip
-from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort: skip
+from isaaclab.markers import CUBOID_MARKER_CFG, RED_ARROW_X_MARKER_CFG  # isort: skip
 
 
 class PoseTrackingEnvWindow(BaseEnvWindow):
@@ -45,7 +52,7 @@ class PoseTrackingEnvWindow(BaseEnvWindow):
                 with self.ui_window_elements["debug_vstack"]:
                     # add command manager visualization
                     self._create_debug_vis_ui_element("targets", self.env)
-                    # self._create_debug_vis_ui_element("body_contact_sensor", self.env)
+                    self._create_debug_vis_ui_element("contact_forces", self.env)
 
 
 @configclass
@@ -54,11 +61,11 @@ class SpidarEnvCfg(DirectRLEnvCfg):
     decimation = 2
     episode_length_s = 5.0
     # - spaces definition
-    rotor_num = 8
+    rotor_num = 16
     gimbal_num = 16
     joint_num = 16
-    # 8 rotors, 16 gimbals, 16 joints
-    action_space = 40
+    # 16 rotors, 16 gimbals, 16 joints
+    action_space = rotor_num + gimbal_num + joint_num
     # # # # observation space:
     # linear velocity (3)
     # angular velocity (3)
@@ -69,7 +76,7 @@ class SpidarEnvCfg(DirectRLEnvCfg):
     observation_space = 12 + gimbal_num + joint_num + action_space
     thrust_to_torque_ratio = 0.0165
     # rotor_direction = [1, -1, 1, -1]
-    rotor_direction = [1, 1, 1, 1, -1, -1, -1, -1]
+    rotor_direction = {"edf.*_left": 1, "edf.*_right": -1}
     contact_force_threshold = 0.1
 
     thrust_limit = 16.0  # N
@@ -123,7 +130,7 @@ class SpidarEnvCfg(DirectRLEnvCfg):
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
     body_contact_sensor: ContactSensorCfg = ContactSensorCfg(
-        prim_path="/World/envs/env_.*/Robot/root",  # Bind to the robot root link
+        prim_path="/World/envs/env_.*/Robot/center_link",  # Bind to the robot root link
         history_length=1,
         update_period=0,  # Update every physics step
         track_air_time=True,
@@ -132,15 +139,16 @@ class SpidarEnvCfg(DirectRLEnvCfg):
         filter_prim_paths_expr=[terrain.prim_path],  # Only track contacts with the ground
     )
 
-    # foot_contact_sensor: ContactSensorCfg = ContactSensorCfg(
-    #     prim_path="/World/envs/env_.*/Robot/foot",   # Bind to the robot foot link
-    #     history_length=1,
-    #     update_period=0,                   # Update every physics step
-    #     track_air_time=True,
-    #     debug_vis=True,
-    #     # filter_prim_paths_expr=["/World/ground"],  # Only track contacts with the ground
-    #     filter_prim_paths_expr=[terrain.prim_path],  # Only track contacts with the ground
-    # )
+    foot_contact_sensor: ContactSensorCfg = ContactSensorCfg(
+        prim_path="/World/envs/env_.*/Robot/.*_foot",  # Bind to the robot foot link
+        history_length=1,
+        update_period=0,  # Update every physics step
+        track_air_time=True,
+        track_pose=True,
+        debug_vis=True,
+        # filter_prim_paths_expr=["/World/ground"],  # Only track contacts with the ground
+        filter_prim_paths_expr=[terrain.prim_path],  # Only track contacts with the ground
+    )
 
 
 class SpidarEnv(DirectRLEnv):
@@ -177,7 +185,8 @@ class SpidarEnv(DirectRLEnv):
         self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum()
         self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm()
         self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
-        self._thrust_ids = self._robot.find_bodies("thrust.*")
+        self._thrust_ids = self._robot.find_bodies(r"(edf.*_left|edf.*_right)")
+        self._thrust_dir = [1 if "left" in name else -1 for name in self._thrust_ids[1]]
 
         self._gimbal_ids = self._robot.find_joints("gimbal.*")
         self._rotor_ids = self._robot.find_joints("rotor.*")
@@ -190,10 +199,11 @@ class SpidarEnv(DirectRLEnv):
         print("Spidar robot joint list: ")
         for joint in self._robot.joint_names:
             print(f" - {joint}")
-        print("Thrust IDs: ", self._thrust_ids)
         print("Gimbal IDs: ", self._gimbal_ids)
         print("Rotor IDs: ", self._rotor_ids)
         print("Joint IDs: ", self._joint_ids)
+        print("Thrust IDs: ", self._thrust_ids)
+        print("Thrust Directions: ", self._thrust_dir)
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
         self.set_debug_vis(self.cfg.debug_vis)
@@ -203,6 +213,10 @@ class SpidarEnv(DirectRLEnv):
 
         self._body_contact_sensor = ContactSensor(self.cfg.body_contact_sensor)
         self.scene.sensors["body_contact_sensor"] = self._body_contact_sensor
+        self._foot_contact_sensor = ContactSensor(self.cfg.foot_contact_sensor)
+        self.scene.sensors["foot_contact_sensor"] = self._foot_contact_sensor
+        # print("Contact sensors: ")
+        # print(self._foot_contact_sensor.body_names)
         # add ground plane
         # spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
         self.cfg.terrain.num_envs = self.scene.cfg.num_envs
@@ -402,12 +416,46 @@ class SpidarEnv(DirectRLEnv):
                 # -- goal pose
                 marker_cfg.prim_path = "/Visuals/Command/goal_position"
                 self.goal_pos_visualizer = VisualizationMarkers(marker_cfg)
+            if not hasattr(self, "force_visualizer"):
+                marker_cfg = RED_ARROW_X_MARKER_CFG.copy()
+                marker_cfg.markers["arrow"].scale = (0.05, 0.1, 0.1)
+                marker_cfg.prim_path = "/Visuals/Command/force_visualization"
+                self.force_visualizer = VisualizationMarkers(marker_cfg)
             # set their visibility to true
             self.goal_pos_visualizer.set_visibility(True)
+            self.force_visualizer.set_visibility(True)
         else:
             if hasattr(self, "goal_pos_visualizer"):
                 self.goal_pos_visualizer.set_visibility(False)
+            if hasattr(self, "force_visualizer"):
+                self.force_visualizer.set_visibility(False)
 
     def _debug_vis_callback(self, event):
         # update the markers
         self.goal_pos_visualizer.visualize(self._desired_pos_w)
+        # visualize forces on the robot base
+        forces = self._foot_contact_sensor.data.net_forces_w  # shape: num_envs, num_sensors, 3
+        forces_pos = self._foot_contact_sensor.data.pos_w
+
+        if forces is None or forces_pos is None:
+            self.force_visualizer.set_visibility(False)
+            return
+
+        forces = forces.reshape(-1, 3)
+        forces_pos = forces_pos.reshape(-1, 3)
+
+        forces_mag = torch.linalg.norm(forces, dim=-1)
+
+        unit_dir = normalize(forces)
+
+        orientations = quat_from_angle_axis(torch.zeros(forces_mag.shape[0], device=self.device), unit_dir)
+        x2z_quat = quat_from_euler_xyz(
+            torch.zeros(unit_dir.shape[0], device=self.device, dtype=unit_dir.dtype),
+            -math.pi / 2 * torch.ones(unit_dir.shape[0], device=self.device, dtype=unit_dir.dtype),
+            torch.zeros(unit_dir.shape[0], device=self.device, dtype=unit_dir.dtype),
+        )  # (N,4)
+        orientations = quat_mul(orientations, x2z_quat)
+
+        scales = torch.ones_like(forces)
+        scales[:, 0] = forces_mag * 0.5
+        self.force_visualizer.visualize(translations=forces_pos, orientations=orientations, scales=scales)

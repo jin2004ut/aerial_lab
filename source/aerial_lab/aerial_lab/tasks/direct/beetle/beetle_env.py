@@ -84,7 +84,8 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     ang_vel_reward_scale = -0.01
     reach_lin_vel_reward_scale = -0.05
     reach_ang_vel_reward_scale = -0.1
-    thrust_power_reward_scale = -1.0e-4
+    thrust_power_reward_scale = -2.0e-4  # -1.0e-4
+    goal_orientation_reward_scale = -0.001
     distance_to_goal_reward_scale = 5.0
 
     terrain = TerrainImporterCfg(
@@ -121,7 +122,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
     contact_sensor: ContactSensorCfg = ContactSensorCfg(
-        prim_path="/World/envs/env_.*/Robot/root",  # Bind to the robot root link
+        prim_path="/World/envs/env_.*/Robot/base_link",  # Bind to the robot root link
         history_length=1,
         update_period=0,  # Update every physics step
         track_air_time=True,
@@ -132,7 +133,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     # https://isaac-sim.github.io/IsaacLab/main/source/api/lab/isaaclab.sensors.html#inertia-measurement-unit
     imu_sensor: ImuCfg = ImuCfg(
-        prim_path="/World/envs/env_.*/Robot/root",
+        prim_path="/World/envs/env_.*/Robot/base_link",
         update_period=0,
         history_length=1,
         offset=ImuCfg.OffsetCfg(
@@ -166,9 +167,10 @@ class BeetleEnv(DirectRLEnv):
                 "lin_vel",
                 "ang_vel",
                 "distance_to_goal",
-                "reach_lin_vel",
+                # "reach_lin_vel",
                 "reach_ang_vel",
                 "thrust_power",
+                "goal_orientation",
             ]
         }
 
@@ -312,18 +314,20 @@ class BeetleEnv(DirectRLEnv):
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
         distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
-        distance_to_goal_weight = torch.exp(-torch.square(distance_to_goal))
-        reach_lin_vel = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=-1) * distance_to_goal_weight
+        distance_to_goal_weight = torch.exp(-torch.square(3.0 * distance_to_goal))
+        # reach_lin_vel = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=-1) * distance_to_goal_weight
         reach_ang_vel = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=-1) * distance_to_goal_weight
+        goal_orientation = torch.linalg.norm(self._robot.data.projected_gravity_b, dim=-1) * distance_to_goal_weight
         thrust_power = torch.sum(torch.square(self._target_thrust_force), dim=1)
 
         rewards = {
             "lin_vel": lin_vel * self.cfg.lin_vel_reward_scale * self.step_dt,
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
             "distance_to_goal": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
-            "reach_lin_vel": reach_lin_vel * self.cfg.reach_lin_vel_reward_scale * self.step_dt,
+            # "reach_lin_vel": reach_lin_vel * self.cfg.reach_lin_vel_reward_scale * self.step_dt,
             "reach_ang_vel": reach_ang_vel * self.cfg.reach_ang_vel_reward_scale * self.step_dt,
             "thrust_power": thrust_power * self.cfg.thrust_power_reward_scale * self.step_dt,
+            "goal_orientation": goal_orientation * self.cfg.goal_orientation_reward_scale * self.step_dt,
         }
         total_reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         # Logging
@@ -336,9 +340,13 @@ class BeetleEnv(DirectRLEnv):
         time_out = self.episode_length_buf >= self.max_episode_length - 1
         # import ipdb; ipdb.set_trace()
         # died = torch.linalg.norm(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1) > 0.1
-        crash = torch.linalg.norm(self._contact_sensor.data.net_forces_w.squeeze(1), dim=-1) > 0.1
-        drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1, self._robot.data.root_pos_w[:, 2] > 5.0)
-        died = torch.logical_or(crash, drift)
+        crash = (
+            torch.linalg.norm(self._contact_sensor.data.net_forces_w.squeeze(1), dim=-1)
+            > self.cfg.contact_force_threshold
+        )
+        # drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1, self._robot.data.root_pos_w[:, 2] > 5.0)
+        # died = torch.logical_or(crash, drift)
+        died = crash
         #################################################
         # print(torch.linalg.norm(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1))  # die if in contact with the ground
         # print(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
@@ -384,9 +392,9 @@ class BeetleEnv(DirectRLEnv):
         # self._rotor_vel[env_ids] = 0.0
         # self._rotor_force[env_ids] = 0.0
         # Sample new commands
-        self._desired_pos_w[env_ids, :2] = torch.zeros_like(self._desired_pos_w[env_ids, :2]).uniform_(-2.0, 2.0)
+        self._desired_pos_w[env_ids, :2] = torch.zeros_like(self._desired_pos_w[env_ids, :2]).uniform_(-3.0, 3.0)
         self._desired_pos_w[env_ids, :2] += self._terrain.env_origins[env_ids, :2]
-        self._desired_pos_w[env_ids, 2] = torch.zeros_like(self._desired_pos_w[env_ids, 2]).uniform_(0.5, 1.5)
+        self._desired_pos_w[env_ids, 2] = torch.zeros_like(self._desired_pos_w[env_ids, 2]).uniform_(0.5, 2.5)
         # Reset robot state
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_vel = self._robot.data.default_joint_vel[env_ids]

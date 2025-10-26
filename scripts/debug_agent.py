@@ -65,7 +65,7 @@ def main():
             # actions[:, 0] = gimbal_target  # set gimbal 1 target
 
             # thrust_target = 200 * torch.sin(torch.tensor(counter / 50.0))  # constant thrust
-            # thrust_target = torch.full((1, 4), 0.1, device=env.unwrapped.device)
+            # thrust_target = torch.full((1, 4), 0, device=env.unwrapped.device)
             # actions[:, 4:8] = thrust_target  # set thrust targets
             # apply actions
             env.step(actions)
