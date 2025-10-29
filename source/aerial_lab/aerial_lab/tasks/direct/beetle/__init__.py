@@ -16,7 +16,7 @@ from . import agents
 ##
 
 gym.register(
-    id="Aerial-Lab-Beetle-Direct-v0",
+    id="Beetle-Direct-Pose-v0",
     entry_point=f"{__name__}.beetle_env:BeetleEnv",
     disable_env_checker=True,
     kwargs={
@@ -28,7 +28,7 @@ gym.register(
 )
 
 gym.register(
-    id="Aerial-Lab-Beetle-Direct-DEBUG-v0",
+    id="Beetle-Direct-Pose-DEBUG-v0",
     entry_point=f"{__name__}.beetle_env_debug:BeetleEnv",
     disable_env_checker=True,
     kwargs={

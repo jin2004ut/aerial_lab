@@ -14,15 +14,17 @@ import torch
 from isaaclab.assets import Articulation, ArticulationCfg
 from isaaclab.envs import DirectRLEnv, DirectRLEnvCfg
 from isaaclab.envs.ui import BaseEnvWindow
-from isaaclab.markers import VisualizationMarkers
+from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensor, ContactSensorCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.math import (
     normalize,
+    quat_error_magnitude,
     quat_from_angle_axis,
     quat_from_euler_xyz,
     quat_mul,
@@ -168,6 +170,8 @@ class SpidarEnv(DirectRLEnv):
         self._target_rotor_torque = torch.zeros(self.num_envs, self.cfg.rotor_num, device=self.device)
         # Goal position
         self._desired_pos_w = torch.zeros(self.num_envs, 3, device=self.device)
+        self._desired_rpy_w = torch.zeros(self.num_envs, 3, device=self.device)
+        self._desired_quat_w = torch.zeros(self.num_envs, 4, device=self.device)
 
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -364,6 +368,9 @@ class SpidarEnv(DirectRLEnv):
         final_distance_to_goal = torch.linalg.norm(
             self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
         ).mean()
+        final_anglular_to_goal = quat_error_magnitude(
+            self._desired_quat_w[env_ids], self._robot.data.root_quat_w[env_ids]
+        ).mean()
         extras = dict()
         for key in self._episode_sums.keys():
             episodic_sum_avg = torch.mean(self._episode_sums[key][env_ids])
@@ -375,6 +382,7 @@ class SpidarEnv(DirectRLEnv):
         extras["Episode_Termination/died"] = torch.count_nonzero(self.reset_terminated[env_ids]).item()
         extras["Episode_Termination/time_out"] = torch.count_nonzero(self.reset_time_outs[env_ids]).item()
         extras["Metrics/final_distance_to_goal"] = final_distance_to_goal.item()
+        extras["Metrics/final_anglular_to_goal"] = final_anglular_to_goal.item()
         self.extras["log"].update(extras)
 
         self._robot.reset(env_ids)
@@ -397,6 +405,12 @@ class SpidarEnv(DirectRLEnv):
         self._desired_pos_w[env_ids, :2] = torch.zeros_like(self._desired_pos_w[env_ids, :2]).uniform_(-2.0, 2.0)
         self._desired_pos_w[env_ids, :2] += self._terrain.env_origins[env_ids, :2]
         self._desired_pos_w[env_ids, 2] = torch.zeros_like(self._desired_pos_w[env_ids, 2]).uniform_(0.5, 1.5)
+        self._desired_rpy_w[env_ids] = torch.zeros_like(self._desired_pos_w[env_ids]).uniform_(-math.pi, math.pi)
+        self._desired_quat_w[env_ids] = quat_from_euler_xyz(
+            self._desired_rpy_w[env_ids][:, 0],
+            self._desired_rpy_w[env_ids][:, 1],
+            self._desired_rpy_w[env_ids][:, 2],
+        )
         # Reset robot state
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_vel = self._robot.data.default_joint_vel[env_ids]
@@ -410,11 +424,16 @@ class SpidarEnv(DirectRLEnv):
         # create markers if necessary for the first time
         if debug_vis:
             if not hasattr(self, "goal_pos_visualizer"):
-                marker_cfg = CUBOID_MARKER_CFG.copy()
-                marker_cfg.markers["cuboid"].size = (0.1, 0.1, 0.1)
-                marker_cfg.markers["cuboid"].visual_material.diffuse_color = (0.0, 1.0, 1.0)
+                marker_cfg = VisualizationMarkersCfg(
+                    markers={
+                        "frame": sim_utils.UsdFileCfg(
+                            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/UIElements/frame_prim.usd",
+                            scale=(0.25, 0.25, 0.25),
+                        ),
+                    }
+                )
                 # -- goal pose
-                marker_cfg.prim_path = "/Visuals/Command/goal_position"
+                marker_cfg.prim_path = "/Visuals/Command/goal_pose"
                 self.goal_pos_visualizer = VisualizationMarkers(marker_cfg)
             if not hasattr(self, "force_visualizer"):
                 marker_cfg = RED_ARROW_X_MARKER_CFG.copy()
@@ -432,7 +451,7 @@ class SpidarEnv(DirectRLEnv):
 
     def _debug_vis_callback(self, event):
         # update the markers
-        self.goal_pos_visualizer.visualize(self._desired_pos_w)
+        self.goal_pos_visualizer.visualize(self._desired_pos_w, self._desired_quat_w)
         # visualize forces on the robot base
         forces = self._foot_contact_sensor.data.net_forces_w  # shape: num_envs, num_sensors, 3
         forces_pos = self._foot_contact_sensor.data.pos_w

@@ -24,7 +24,7 @@
   #### LINK ####
 
 
-  #### dummy root link for KDL ####
+    #### dummy root link for KDL ####
 
   <link name="root">
     <inertial>
@@ -56,7 +56,7 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0.005"/>
       <geometry>
         <cylinder length="0.0928" radius="0.169"/>
       </geometry>
@@ -516,6 +516,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf1_right_mount" type="fixed">
     <child link="edf1_right"/>
@@ -529,6 +535,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
@@ -729,9 +741,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0 1.5707963267948966 0" xyz="0.2615 0 0"/>
+      <origin rpy="0 1.5707963267948966 0" xyz="0.2515 0 0"/>
       <geometry>
-        <cylinder length="0.523" radius="0.025"/>
+        <cylinder length="0.423" radius="0.025"/>
       </geometry>
     </collision>
   </link>
@@ -820,6 +832,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf2_right_mount" type="fixed">
     <child link="edf2_right"/>
@@ -833,6 +851,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
@@ -1041,6 +1065,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf3_right_mount" type="fixed">
     <child link="edf3_right"/>
@@ -1054,6 +1084,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
@@ -1254,9 +1290,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0 1.5707963267948966 0" xyz="0.2615 0 0"/>
+      <origin rpy="0 1.5707963267948966 0" xyz="0.2515 0 0"/>
       <geometry>
-        <cylinder length="0.523" radius="0.025"/>
+        <cylinder length="0.423" radius="0.025"/>
       </geometry>
     </collision>
   </link>
@@ -1345,6 +1381,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf4_right_mount" type="fixed">
     <child link="edf4_right"/>
@@ -1358,6 +1400,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
@@ -1566,6 +1614,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf5_right_mount" type="fixed">
     <child link="edf5_right"/>
@@ -1579,6 +1633,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
@@ -1779,9 +1839,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0 1.5707963267948966 0" xyz="0.2615 0 0"/>
+      <origin rpy="0 1.5707963267948966 0" xyz="0.2515 0 0"/>
       <geometry>
-        <cylinder length="0.523" radius="0.025"/>
+        <cylinder length="0.423" radius="0.025"/>
       </geometry>
     </collision>
   </link>
@@ -1870,6 +1930,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf6_right_mount" type="fixed">
     <child link="edf6_right"/>
@@ -1883,6 +1949,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
@@ -2091,6 +2163,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf7_right_mount" type="fixed">
     <child link="edf7_right"/>
@@ -2104,6 +2182,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
@@ -2304,9 +2388,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0 1.5707963267948966 0" xyz="0.2615 0 0"/>
+      <origin rpy="0 1.5707963267948966 0" xyz="0.2515 0 0"/>
       <geometry>
-        <cylinder length="0.523" radius="0.025"/>
+        <cylinder length="0.423" radius="0.025"/>
       </geometry>
     </collision>
   </link>
@@ -2395,6 +2479,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="edf8_right_mount" type="fixed">
     <child link="edf8_right"/>
@@ -2408,6 +2498,12 @@
       <mass value="0.00001"/>
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000002"/>
     </inertial>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.008"/>
+      <geometry>
+        <cylinder length="0.065" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
 
 
