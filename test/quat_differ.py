@@ -9,16 +9,15 @@ from isaaclab.utils.math import (
     compute_pose_error,
     matrix_from_quat,
     normalize,
+    quat_apply,
+    quat_conjugate,
     quat_error_magnitude,
     quat_from_angle_axis,
     quat_from_euler_xyz,
-    quat_apply,
     quat_mul,
     sample_uniform,
     subtract_frame_transforms,
-    quat_conjugate,
 )
-
 
 
 @torch.jit.script

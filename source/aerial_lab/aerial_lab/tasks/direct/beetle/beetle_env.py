@@ -426,7 +426,8 @@ class BeetleEnv(DirectRLEnv):
         # quat_to_goal = torch.sum(torch.square(self._angle_error), dim=1) * distance_to_goal_weight
         angular_to_goal = torch.linalg.norm(self._angle_error, dim=1)
         # angular_to_goal_mapped = torch.tanh(angular_to_goal)
-        angular_to_goal_mapped = 1 - torch.exp(-2 * angular_to_goal)
+        # angular_to_goal_mapped = 1 - torch.exp(-2 * angular_to_goal)
+        angular_to_goal_mapped = 1 - torch.exp(-angular_to_goal / 0.8)
         # angular_error_to_goal_mapped = 1 - torch.exp(-angular_to_goal)
 
         rewards = {
@@ -479,18 +480,30 @@ class BeetleEnv(DirectRLEnv):
             torch.logical_and(ang_vel_norm < ANG_VEL_TH, lin_vel_norm < LIN_VEL_TH),
             torch.logical_and(angular_to_goal < ANG_TH, distance_to_goal < POS_TH),
         )
-        reach_goal_reward = self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 20.0
+        reach_goal_reward = self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 10.0
         reach_goal_reward = (
-            (POS_TH - distance_to_goal) * self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 100.0
+            torch.exp((POS_TH - distance_to_goal) / POS_TH)
+            * self.reset_time_outs.to(torch.float32)
+            * reach_goal.to(torch.float32)
+            * 20.0
         )
         reach_goal_reward = (
-            (ANG_TH - angular_to_goal) * self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 50.0
+            torch.exp((ANG_TH - angular_to_goal) / ANG_TH)
+            * self.reset_time_outs.to(torch.float32)
+            * reach_goal.to(torch.float32)
+            * 20.0
         )
         reach_goal_reward = (
-            (LIN_VEL_TH - lin_vel_norm) * self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 250.0
+            torch.exp((LIN_VEL_TH - lin_vel_norm) / LIN_VEL_TH)
+            * self.reset_time_outs.to(torch.float32)
+            * reach_goal.to(torch.float32)
+            * 20.0
         )
         reach_goal_reward = (
-            (ANG_VEL_TH - ang_vel_norm) * self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 500.0
+            torch.exp((ANG_VEL_TH - ang_vel_norm) / ANG_VEL_TH)
+            * self.reset_time_outs.to(torch.float32)
+            * reach_goal.to(torch.float32)
+            * 20.0
         )
         reach_goal_reward = torch.clamp(reach_goal_reward, min=0.0, max=40.0)
         total_reward += reach_goal_reward
