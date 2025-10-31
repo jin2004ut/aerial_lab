@@ -625,8 +625,8 @@ class BeetleEnv(DirectRLEnv):
 
         quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
         pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
-        # quat_sample_rate = max(quat_sample_rate - 0.20, 0.0)
-        # pos_sample_rate = max(pos_sample_rate - 0.06, 0.0)
+        quat_sample_rate = max(quat_sample_rate - 0.20, 0.0)
+        pos_sample_rate = max(pos_sample_rate - 0.06, 0.0)
         ang_range = min(math.pi * 0.5 * quat_sample_rate, math.pi * 0.45)
         pos_range = min(5.0 * pos_sample_rate, 5.0)
         pos_range_z = min(1.0 * pos_sample_rate, 1.0)
