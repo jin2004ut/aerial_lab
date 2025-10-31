@@ -21,7 +21,7 @@ class Rotor:
         directions: torch.Tensor,
         thrust_coeff: float = 1.0,
         torque_coeff: float = 0.02,
-        rotor_ids: torch.Tensor | None = None,
+        rotor_ids: list | None = list(),
         device: torch.device | None = None,
     ):
         self.device = device or directions.device
@@ -29,6 +29,7 @@ class Rotor:
         self.thrust_coeff = thrust_coeff
         self.torque_coeff = torque_coeff
         self.env_num = env_num
+        self.rotor_ids = rotor_ids.copy()  # (N_rotor,)
         self.rotor_num = len(directions)
 
         # rotor_ids: useful for indexing/logging

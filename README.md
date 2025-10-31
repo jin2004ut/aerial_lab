@@ -96,7 +96,7 @@ tensorboard --logdir=logs/rsl_rl/beetle_direct/ --port=6006
 
 Start training process with video record
 ```bash
-python source/standalone/workflows/rl_games/train.py --task=Isaac-Cartpole-v0 --headless --video --video_length 100 --video_interval 500
+python source/standalone/workflows/rl_games/train.py --task=Isaac-Cartpole-v0 --headless --video --video_length 500 --video_interval 500
 ```
 Play trained policy with specific checkpoint
 ```bash
