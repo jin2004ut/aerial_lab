@@ -100,7 +100,7 @@ python source/standalone/workflows/rl_games/train.py --task=Isaac-Cartpole-v0 --
 ```
 Play trained policy with specific checkpoint
 ```bash
-python scripts/rsl_rl/play.py --task=Aerial-Lab-Beetle-Direct-DEBUG-v0 --checkpoint=logs/rsl_rl/beetle_direct_debug/2025-10-22_22-34-33/model_1000.pt  --num_envs=16
+python scripts/rsl_rl/play.py --task=Beetle-Direct-DEBUG-v0 --checkpoint=logs/rsl_rl/beetle_direct_debug/2025-10-22_22-34-33/model_1000.pt  --num_envs=16
 ```
 
 ### URDF Visualizer
