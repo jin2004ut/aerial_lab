@@ -40,6 +40,8 @@ from isaaclab.utils.math import (
 
 from aerial_lab.assets.aerialrobot import BEETLE_CFG, MINI_QUADROTOR_CFG  # isort: skip
 from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort: skip
+
+# from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.actuators.rotor import Rotor  # isort: skip
 
 
@@ -67,6 +69,7 @@ class PoseTrackingEnvWindow(BaseEnvWindow):
 @configclass
 class BeetleEnvCfg(DirectRLEnvCfg):
     # env
+    sim_dt = 1 / 200.0
     decimation = 4
     episode_length_s = 10.0
     # - spaces definition
@@ -111,6 +114,20 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # angular_to_goal_reward_scale = 3.0
     angular_error_to_goal_reward_scale = -5.0
 
+    rotorCfg = {
+        "rotor_num": 4,
+        "dt": sim_dt,
+        "mode": "foc",
+        "thrust_coeff": 1.0,
+        "torque_coeff": thrust_to_torque_ratio,
+        "max_vel": 200.0,
+        "max_foc": thrust_limit,
+        "vel_wn": 1.0,
+        "vel_zeta": 0.8,
+        "foc_wn": 1.0,
+        "foc_zeta": 0.8,
+    }
+
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="plane",
@@ -127,7 +144,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     # simulation
     sim: SimulationCfg = SimulationCfg(
-        dt=1 / 200,
+        dt=sim_dt,
         render_interval=decimation,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -244,6 +261,14 @@ class BeetleEnv(DirectRLEnv):
             rotor_ids=self._thrust_ids[0],
             device=self.device,
         )
+        # self._rotors = RotorGroup(
+        #     cfg=cfg.rotorCfg,
+        #     devices=self.device,
+        #     num_envs=self.num_envs,
+        #     rotor_ids=self._thrust_ids[0],
+        #     rotor_names=self._thrust_ids[1],
+        #     rotor_directions=self.cfg.rotor_direction,
+        # )
 
         self.set_debug_vis(self.cfg.debug_vis)
 
@@ -289,6 +314,7 @@ class BeetleEnv(DirectRLEnv):
         # action_thrust_force[:, 1] = 0.0
         # action_thrust_force[:, 2] = 1.0
         # action_thrust_force[:, 3] = 0.0
+        # self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force)
         self._target_thrust_force, self._target_rotor_torque = self._rotors.compute_dynamics(self._action_thrust_force)
         # #################################################
         # self._target_rotor_torque = (
@@ -330,6 +356,13 @@ class BeetleEnv(DirectRLEnv):
             torques=self._target_rotor_torque,
             body_ids=self._thrust_ids[0],
         )
+        # print("Applied thrust forces: ", self._target_thrust_force[0])
+        # print("Applied rotor torques: ", self._target_rotor_torque[0])
+        # if torch.any(self._target_thrust_force[:, :, :] < 0.0):
+        #     print("\nNegative thrust applied:", self._target_thrust_force.transpose(0, 1))
+        #     print("Thrust Actions:", self._action_thrust_force.transpose(0, 1))
+        #     print("Original Actions:", self._actions.transpose(0, 1))
+        #     print("Negative thrust applied!")
 
     def _get_observations(self) -> dict:
         goal_pos_b, _ = subtract_frame_transforms(
@@ -571,6 +604,7 @@ class BeetleEnv(DirectRLEnv):
         extras["Metrics/avg_goal_ang_vel_x"] = goal_ang_vel_avg[0].item()
         extras["Metrics/avg_goal_ang_vel_y"] = goal_ang_vel_avg[1].item()
         extras["Metrics/avg_goal_ang_vel_z"] = goal_ang_vel_avg[2].item()
+        extras["Metrics/sample_rate"] = self._sim_step_counter / self.max_episode_length
         self.extras["log"].update(extras)
 
         self._robot.reset(env_ids)
@@ -635,11 +669,10 @@ class BeetleEnv(DirectRLEnv):
         #     self._desired_pos_w[sample_pos_env_ids, 2] = torch.empty_like(
         #         self._desired_pos_w[sample_pos_env_ids, 2]
         #     ).uniform_(0.5, 2.5)
-
-        # quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
-        # pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
-        quat_sample_rate = self._sim_step_counter / 8000.0 * 2  # start from 0.3, reach 0.8
-        pos_sample_rate = self._sim_step_counter / 8000.0 * 2  # start from 0.1, reach 0.6
+        quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
+        pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
+        # quat_sample_rate = self._sim_step_counter / 8000.0 * 2  # start from 0.3, reach 0.8
+        # pos_sample_rate = self._sim_step_counter / 8000.0 * 2  # start from 0.1, reach 0.6
         quat_sample_rate = max(quat_sample_rate - 0.20, 0.0)
         pos_sample_rate = max(pos_sample_rate - 0.06, 0.0)
         ang_range = min(math.pi * 0.5 * quat_sample_rate, math.pi * 0.45)

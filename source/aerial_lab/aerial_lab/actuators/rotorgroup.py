@@ -1,5 +1,4 @@
 # rotor.py
-from pyparsing import Enum
 import torch
 import torch.nn as nn
 
@@ -28,9 +27,7 @@ class SecondOrderSystem:
         u <=> x, is the same physical variable
         """
         x, xdot = self.state
-        xddot = (
-            -2 * self.zeta * self.wn * xdot - self.wn**2 * x + self.wn**2 * input
-        )
+        xddot = -2 * self.zeta * self.wn * xdot - self.wn**2 * x + self.wn**2 * input
         xdot += xddot * dt
         x += xdot * dt
         self.state = torch.tensor([x, xdot], device=self.device)
@@ -82,6 +79,7 @@ class Rotor:
         thrust (torch.Tensor, shape: (1, 3)): Thrust force vector.
         torque (torch.Tensor, shape: (1, 3)): Torque vector.
     """
+
     def __init__(
         self,
         device: torch.device,
@@ -112,17 +110,13 @@ class Rotor:
 
         self.vel = torch.zeros(1, device=self.device)
         self.velsys = SecondOrderSystem(
-            device,
-            wn=0.0 if vel_wn is None else vel_wn,
-            zeta=0.0 if vel_zeta is None else vel_zeta
+            device, wn=0.0 if vel_wn is None else vel_wn, zeta=0.0 if vel_zeta is None else vel_zeta
         )
         self.max_vel = max_vel
 
         self.foc = torch.zeros(1, device=self.device)
         self.focsys = SecondOrderSystem(
-            device,
-            wn=0.0 if foc_wn is None else foc_wn,
-            zeta=0.0 if foc_zeta is None else foc_zeta
+            device, wn=0.0 if foc_wn is None else foc_wn, zeta=0.0 if foc_zeta is None else foc_zeta
         )
         self.max_foc = max_foc
 
@@ -154,6 +148,7 @@ class RotorGroup(nn.Module):
         rotor_ids (torch.Tensor): shape (num_rotors,) optional unique IDs.
         device (torch.device): Torch device (e.g., torch.device("cuda")).
     """
+
     dir: torch.Tensor
     kf: torch.Tensor
     km: torch.Tensor
@@ -174,20 +169,18 @@ class RotorGroup(nn.Module):
     def __init__(
         self,
         cfg,
-        devices: torch.device,
+        devices: torch.device | str,
         num_envs: int,
-        rotor_ids: slice | torch.Tensor,
+        rotor_ids: slice | torch.Tensor | list,
         rotor_names: list[str],
-        rotor_directions: slice | torch.Tensor,
+        rotor_directions: slice | torch.Tensor | list,
     ):
         super().__init__()
         self.device = devices
         self.num_envs = num_envs
         self.cfg = cfg
         if cfg["rotor_num"] != len(rotor_names):
-            raise ValueError(
-                f"rotor_num {cfg['rotor_num']} does not match length of rotor_names {len(rotor_names)}"
-            )
+            raise ValueError(f"rotor_num {cfg['rotor_num']} does not match length of rotor_names {len(rotor_names)}")
         self.num_rotors = cfg["rotor_num"]
         self.names = rotor_names
         self.ids = rotor_ids
@@ -261,17 +254,17 @@ class RotorGroup(nn.Module):
             vel_cmd: The desired rotor velocities, shape (num_envs, num_rotors).
         """
         # # # # second order system
-        vel_cmd = torch.clamp(vel_cmd, min=torch.zeros_like(self.max_vel), max=self.max_vel)
-        wn = self.vel_wn
-        zeta = self.vel_zeta
-        x = self.vel
-        xdot = self.vel_dot
-        wn_sq = wn * wn
-        xddot = -2.0 * zeta * wn * xdot - wn_sq * x + wn_sq * vel_cmd
-        xdot = xdot + xddot * self.dt
-        x = torch.clamp(x + xdot * self.dt, min=torch.zeros_like(self.max_vel), max=self.max_vel)
-        self.vel.copy_(x)
-        self.vel_dot.copy_(xdot)
+        # vel_cmd = torch.clamp(vel_cmd, min=torch.zeros_like(self.max_vel), max=self.max_vel)
+        # wn = self.vel_wn
+        # zeta = self.vel_zeta
+        # x = self.vel
+        # xdot = self.vel_dot
+        # wn_sq = wn * wn
+        # xddot = -2.0 * zeta * wn * xdot - wn_sq * x + wn_sq * vel_cmd
+        # xdot = xdot + xddot * self.dt
+        # x = torch.clamp(x + xdot * self.dt, min=torch.zeros_like(self.max_vel), max=self.max_vel)
+        # self.vel.copy_(x)
+        # self.vel_dot.copy_(xdot)
 
         # # # # first order system
         # vel_cmd = torch.clamp(vel_cmd, min=torch.zeros_like(self.max_vel), max=self.max_vel)
@@ -282,6 +275,10 @@ class RotorGroup(nn.Module):
         # x = torch.clamp(x + xdot * self.dt, min=torch.zeros_like(self.max_vel), max=self.max_vel)
         # self.vel.copy_(x)
         # self.vel_dot.copy_(xdot)
+
+        # # # # ideal system
+        x = torch.clamp(vel_cmd, min=torch.zeros_like(self.max_vel), max=self.max_vel)
+        self.vel.copy_(x)
         return x
 
     def stepfoc(self, foc_cmd: torch.Tensor):
@@ -290,17 +287,18 @@ class RotorGroup(nn.Module):
         Args:
             foc_cmd: The desired rotor forces, shape (num_envs, num_rotors).
         """
-        foc_cmd = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
-        wn = self.foc_wn
-        zeta = self.foc_zeta
-        x = self.foc
-        xdot = self.foc_dot
-        wn_sq = wn * wn
-        xddot = -2.0 * zeta * wn * xdot - wn_sq * x + wn_sq * foc_cmd
-        xdot = xdot + xddot * self.dt
-        x = torch.clamp(x + xdot * self.dt, min=torch.zeros_like(self.max_foc), max=self.max_foc)
-        self.foc.copy_(x)
-        self.foc_dot.copy_(xdot)
+        # # # # second order system
+        # foc_cmd = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
+        # wn = self.foc_wn
+        # zeta = self.foc_zeta
+        # x = self.foc
+        # xdot = self.foc_dot
+        # wn_sq = wn * wn
+        # xddot = -2.0 * zeta * wn * xdot - wn_sq * x + wn_sq * foc_cmd
+        # xdot = xdot + xddot * self.dt
+        # x = torch.clamp(x + xdot * self.dt, min=torch.zeros_like(self.max_foc), max=self.max_foc)
+        # self.foc.copy_(x)
+        # self.foc_dot.copy_(xdot)
 
         # # # # first order system
         # foc_cmd = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
@@ -311,14 +309,20 @@ class RotorGroup(nn.Module):
         # x = torch.clamp(x + xdot * self.dt, min=torch.zeros_like(self.max_foc), max=self.max_foc)
         # self.foc.copy_(x)
         # self.foc_dot.copy_(xdot)
-        return x
+
+        # # # # ideal system
+        # x = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
+        # self.foc.copy_(x)
+        # return x
+        self.foc.copy_(foc_cmd)
+        return foc_cmd
 
     def forward(self, cmd: torch.Tensor):
         if cmd.shape != (self.num_envs, self.num_rotors):
             raise ValueError(f"cmd shape {cmd.shape} != ({self.num_envs}, {self.num_rotors})")
         if self.mode == "vel":
             self.stepvel(cmd)
-            thrusts = self.kf * self.vel * self.vel
+            thrusts = self.kf * self.vel.square()
         elif self.mode == "foc":
             self.stepfoc(cmd)
             thrusts = self.foc
@@ -334,16 +338,17 @@ class RotorGroup(nn.Module):
 
 # debug.py
 if __name__ == "__main__":
+    import math
 
     import matplotlib.pyplot as plt
-    import math
+
     # run the main function
     cfg = {
         "rotor_num": 4,
         "dt": 0.01,
         "mode": "vel",
-        "thrust_coeff": 3.2e-3,
-        "torque_coeff": 1.4e-3,
+        "thrust_coeff": 1,
+        "torque_coeff": 0.1,
         "max_vel": 200.0,
         "max_foc": 6.0,
         "vel_wn": 1.0,
@@ -356,33 +361,56 @@ if __name__ == "__main__":
     group = RotorGroup(
         cfg=cfg,
         devices=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        num_envs=16,
+        num_envs=3,
         rotor_ids=torch.arange(4),
         rotor_names=["FL", "FR", "RL", "RR"],
         rotor_directions=rotor_directions,
     )
     group.reset()
 
+    print("RotorGroup initialized.")
+    print(f"Device: {group.device}")
+    print(f"Number of envs: {group.num_envs}")
+    print(f"Number of rotors: {group.num_rotors}")
+    print(f"Rotor directions: {group.dir}")
+    print(f"Thrust coeffs: {group.kf}")
+    print(f"Torque coeffs: {group.km}")
+    print(f"thrust to torque ratios: {group.torque_thrust_ratio}")
+    print(f"Max velocities: {group.max_vel}")
+    print(f"Max forces: {group.max_foc}")
+
     print(f"{'='*10}Parameter Reset Debugging{'='*10}")
-    vel_cmd = 80.0 + 50.0 * torch.randn(16, 4, device=group.device)
+    vel_cmd = 80.0 + 50.0 * torch.randn(group.num_envs, 4, device=group.device)
     forces, torques = group(vel_cmd)
     print("forces shape:", forces.shape)
     print("torques shape:", torques.shape)
     print("mean thrust per env:", forces[..., 2].mean(dim=-1))
     group.kf[2, :] = 0.0
-    vel_cmd = 80.0 + 50.0 * torch.randn(16, 4, device=group.device)
+    vel_cmd = 80.0 + 50.0 * torch.randn(group.num_envs, 4, device=group.device)
     forces, torques = group(vel_cmd)
     print("forces shape after setting kf[2,:]=0:", forces.shape)
     print("torques shape after setting kf[2,:]=0:", torques.shape)
-    print("mean thrust per env after setting kf[2,:]=0:", forces[..., 2].mean(dim=-1))
+    print("mean thrust per env after setting kf[2,:]=0:", forces[2, :, 2].mean(dim=-1))
 
     print(f"{'='*10}Direction Debugging{'='*10}")
-    print("Rotor directions:", group.dir[3, :])
-    print("Torque ", torques[3, :, :])
-    print("Thrust", forces[3, :, :])
+    print("Rotor directions:", group.dir[2, :])
+    print("Torque ", torques[2, :, :])
+    print("Thrust", forces[2, :, :])
+
+    vel_cmd = torch.randn(group.num_envs, 4, device=group.device)
+    group.dir = torch.randint(low=-1, high=1, size=(group.num_envs, 4), device=group.device).float()
+    forces, torques = group(vel_cmd)
+
+    print("Rotor directions:", group.dir)
+    print("Velocity state:", group.vel)
+    print("km:", group.km)
+    print("kf:", group.kf)
+    print("thrust_to_torque_ratio:", group.torque_thrust_ratio)
+    print("Torque ", torques)
+    print("Thrust", forces)
 
     print(f"{'='*10}Velocity Response Debugging{'='*10}")
-    sim_duration = 15.0
+    sim_duration = 5.0
     steps = int(sim_duration / cfg["dt"])
     target_env, target_rotor = 0, 0
 
@@ -392,29 +420,29 @@ if __name__ == "__main__":
     time_axis = torch.arange(steps, device=group.device) * cfg["dt"]
 
     for step in range(steps):
-        foc_cmd = torch.full((16, 4), 80.0, device=group.device) + 50.0 * math.sin(2 * step * cfg["dt"])
+        foc_cmd = torch.full((group.num_envs, 4), 80.0, device=group.device) + 50.0 * math.sin(2 * step * cfg["dt"])
         forces, torques = group.forward(foc_cmd)
         cmd_history.append(foc_cmd[target_env, target_rotor].item())
         actual_vel = group.vel[target_env, target_rotor].item()
         vel_history.append(actual_vel)
         foc_history.append(forces[target_env, target_rotor, 2].item())
-        print(
-            f"Step {step}: Time {time_axis[step]:.2f}s foc_cmd={foc_cmd[target_env, target_rotor]:.2f}, "
-            f"vel_val={actual_vel:.2f}, foc_val={forces[target_env, target_rotor, 2]:.2f}"
-        )
+        # print(
+        #     f"Step {step}: Time {time_axis[step]:.2f}s foc_cmd={foc_cmd[target_env, target_rotor]:.2f}, "
+        #     f"vel_val={actual_vel:.2f}, foc_val={forces[target_env, target_rotor, 2]:.2f}"
+        # )
 
     print("foc_history:", len(foc_history))
     print("cmd_history:", len(cmd_history))
     print("vel_history:", len(vel_history))
 
-    plt.figure()
-    plt.plot(time_axis.cpu().numpy(), cmd_history, label="foc_cmd [0,0]")
-    plt.plot(time_axis.cpu().numpy(), vel_history, label="vel_val [0,0]")
-    plt.plot(time_axis.cpu().numpy(), foc_history, label="foc_val [0,0]")
-    plt.xlabel("Time [s]")
-    plt.ylabel("Rotor speed")
-    plt.title("Rotor (env 0, rotor 0) velocity response")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    # plt.figure()
+    # plt.plot(time_axis.cpu().numpy(), cmd_history, label="foc_cmd [0,0]")
+    # plt.plot(time_axis.cpu().numpy(), vel_history, label="vel_val [0,0]")
+    # plt.plot(time_axis.cpu().numpy(), foc_history, label="foc_val [0,0]")
+    # plt.xlabel("Time [s]")
+    # plt.ylabel("Rotor speed")
+    # plt.title("Rotor (env 0, rotor 0) velocity response")
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.show()
     # close sim app

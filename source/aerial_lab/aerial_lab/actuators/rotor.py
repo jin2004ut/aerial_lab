@@ -1,4 +1,6 @@
 # rotor.py
+from collections.abc import Sequence
+
 import torch
 
 
@@ -19,17 +21,17 @@ class Rotor:
         self,
         env_num: int,
         directions: torch.Tensor,
+        rotor_ids: slice | torch.Tensor | list,
         thrust_coeff: float = 1.0,
         torque_coeff: float = 0.02,
-        rotor_ids: list | None = list(),
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
     ):
         self.device = device or directions.device
         self.directions = directions.to(self.device)  # (N_env, N_rotor)
         self.thrust_coeff = thrust_coeff
         self.torque_coeff = torque_coeff
         self.env_num = env_num
-        self.rotor_ids = rotor_ids.copy()  # (N_rotor,)
+        self.rotor_ids = rotor_ids  # (N_rotor,)
         self.rotor_num = len(directions)
 
         # rotor_ids: useful for indexing/logging
