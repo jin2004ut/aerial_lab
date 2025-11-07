@@ -1,15 +1,14 @@
-
 from isaaclab.app import AppLauncher
 
 # launch omniverse app in headless mode
 simulation_app = AppLauncher(headless=True).app
 
-from aerial_lab.actuators.rotorgroup import RotorGroup
-from aerial_lab.actuators.rotor import Rotor
 import math
+
 import matplotlib.pyplot as plt
 import torch
-
+from aerial_lab.actuators.rotor import Rotor
+from aerial_lab.actuators.rotorgroup import RotorGroup
 
 if __name__ == "__main__":
     """Main function."""

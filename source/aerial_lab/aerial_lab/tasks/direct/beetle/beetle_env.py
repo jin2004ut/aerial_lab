@@ -43,6 +43,7 @@ from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort
 
 # from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.actuators.rotor import Rotor  # isort: skip
+from aerial_lab.utility.noisemodel import NoiseModel  # isort: skip
 
 
 class PoseTrackingEnvWindow(BaseEnvWindow):
@@ -99,8 +100,16 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     ui_window_class_type = PoseTrackingEnvWindow
 
-    obs_lin_vel_scale = 0.5
-    obs_ang_vel_scale = 0.2
+    class normalization:
+        class obs_scales:
+            ang_vel = 0.2
+            lin_vel = 1.0
+
+    clip_observations = 100.0
+    clip_actions = 100.0
+    # class control:
+    gimbal_action_scale = 0.25
+    thrust_action_scale = 1.25
 
     # reward scales
     lin_vel_reward_scale = -0.05
@@ -113,6 +122,45 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # quat_error_to_goal_reward_scale = -6.0
     # angular_to_goal_reward_scale = 3.0
     angular_error_to_goal_reward_scale = -5.0
+
+    # # # # Noise Configuration
+    noiseCfg = {
+        "root_pos": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.02,
+            "clip": 0.3,
+        },
+        "lin_vel": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.1,
+            "clip": 0.3,
+        },
+        "ang_vel": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.3,
+            "clip": 0.3,
+        },
+        "gravity": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.05,
+            "clip": 0.1,
+        },
+        "dof_pos": {
+            "type": "uniform",
+            "dim": gimbal_num,
+            "mean": 0.0,
+            "std": 0.02,
+            "clip": 0.1,
+        },
+    }
 
     rotorCfg = {
         "rotor_num": 4,
@@ -199,6 +247,9 @@ class BeetleEnv(DirectRLEnv):
 
     def __init__(self, cfg: BeetleEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
+        # Basic cfgs
+        self.obsScales = cfg.normalization.obs_scales
+        self.noiseModel = NoiseModel(cfg.noiseCfg, device=self.device, num_envs=self.num_envs)
 
         # Total thrust and moment applied to the base of the quadcopter
         self._actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device)
@@ -299,12 +350,13 @@ class BeetleEnv(DirectRLEnv):
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self._last_actions = self._actions.clone()
-        self._actions = actions.clone()  # TODO: check action limits
+        clip_actions = self.cfg.clip_actions
+        self._actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)  # TODO: check action limits
         self._action_gimbal_pos = (
-            self._actions[:, : self.cfg.gimbal_num] * self.cfg.gimbal_limit
+            self._actions[:, : self.cfg.gimbal_num] * self.cfg.gimbal_action_scale
         )  # scale to [-1.57, 1.57] rad
         self._action_thrust_force = (
-            (self._actions[:, self.cfg.gimbal_num :] + 1.0) / 2.0 * self.cfg.thrust_limit
+            self._actions[:, self.cfg.gimbal_num :] * self.cfg.thrust_action_scale
         )  # shape: (N, 4)
         # print("Gimbal Positions: ", self._action_gimbal_pos[0])
         # print("Thrust Forces: ", action_thrust_force[0])
@@ -376,26 +428,41 @@ class BeetleEnv(DirectRLEnv):
         goal_rot_vec = goal_rot_mat[:, :2, :].reshape(self.num_envs, 6)
 
         angular_error = self._angle_error
-        # quat_differ = quat_mul(self._robot.data.root_quat_w, self._desired_quat_w)
-        # quat_differ_matrix = matrix_from_quat(normalize(quat_differ))
-        # differ_rotate_vector = quat_differ_matrix[:, :2, :].reshape(self.num_envs, 6)
-        # goal_rot_mat = matrix_from_quat(self._desired_quat_w)
-        # goal_rot_vec = goal_rot_mat[:, :2, :].reshape(self.num_envs, 6)
+
         obs = torch.cat(
             (
-                self._robot.data.root_lin_vel_b * self.cfg.obs_lin_vel_scale,
-                self._robot.data.root_ang_vel_b * self.cfg.obs_ang_vel_scale,
+                self._robot.data.root_lin_vel_b * self.obsScales.lin_vel,
+                self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
                 self._robot.data.projected_gravity_b,
-                root_rot_vec,
                 goal_pos_b,
-                goal_rot_vec,
                 angular_error,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]],
-                # self._robot.data.joint_vel[:, self._rotor_ids[0]],
+                root_rot_vec,
+                goal_rot_vec,
                 self._last_actions,
             ),
             dim=-1,
         )
+        # if "lin_vel" in self.noiseModel.params:
+        #     obs[:, 0:3] = self.noiseModel.apply(obs[:, 0:3], "lin_vel")
+        # if "ang_vel" in self.noiseModel.params:
+        #     obs[:, 3:6] = self.noiseModel.apply(obs[:, 3:6], "ang_vel")
+        # if "gravity" in self.noiseModel.params:
+        #     obs[:, 6:9] = self.noiseModel.apply(obs[:, 6:9], "gravity")
+        # if "root_pos" in self.noiseModel.params:
+        #     obs[:, 9:12] = self.noiseModel.apply(obs[:, 9:12], "root_pos")
+        # if "root_ang" in self.noiseModel.params:
+        #     obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
+        # if "dof_pos" in self.noiseModel.params:
+        #     obs[:, 9:9 + self.cfg.gimbal_num] = self.noiseModel.apply(
+        #         obs[:, :, 9:9 + self.cfg.gimbal_num], "dof_pos"
+        #     )
+        clip_obs = self.cfg.clip_observations
+        obs = torch.clamp(obs, -clip_obs, clip_obs)
+
+        privilegeObs = self._get_states()
+        observations = {"policy": obs, "privilege": privilegeObs}
+
         observations = {"policy": obs}
         return observations
 
@@ -403,25 +470,25 @@ class BeetleEnv(DirectRLEnv):
         goal_pos_b, _ = subtract_frame_transforms(
             self._robot.data.root_pos_w, self._robot.data.root_quat_w, self._desired_pos_w
         )
-        # desired_ang_bias = quat_error_magnitude(
-        #     self._desired_quat_w,
-        #     self._robot.data.root_quat_w
-        # )
         # desired_ang_bias = self._angle_error
         root_rot_mat = matrix_from_quat(self._robot.data.root_quat_w)
         root_rot_vec = root_rot_mat[:, :2, :].reshape(self.num_envs, 6)
+
         goal_rot_mat = matrix_from_quat(self._desired_quat_w)
         goal_rot_vec = goal_rot_mat[:, :2, :].reshape(self.num_envs, 6)
+
+        angular_error = self._angle_error
+
         states = torch.cat(
             (
-                self._robot.data.root_lin_vel_b,
-                self._robot.data.root_ang_vel_b,
+                self._robot.data.root_lin_vel_b * self.obsScales.lin_vel,
+                self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
                 self._robot.data.projected_gravity_b,
-                root_rot_vec,
                 goal_pos_b,
-                goal_rot_vec,
+                angular_error,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]],
-                # self._robot.data.joint_vel[:, self._rotor_ids[0]],
+                root_rot_vec,
+                goal_rot_vec,
                 self._last_actions,
             ),
             dim=-1,
@@ -718,8 +785,8 @@ class BeetleEnv(DirectRLEnv):
             init_y,
         )
         default_root_state[:, 3:7] = init_quat
-        default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.cfg.obs_lin_vel_scale
-        default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.cfg.obs_ang_vel_scale
+        default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.obsScales.lin_vel
+        default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.obsScales.ang_vel
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
