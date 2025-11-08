@@ -1,5 +1,6 @@
-import torch
 from functools import partial
+
+import torch
 
 
 class NoiseModel:

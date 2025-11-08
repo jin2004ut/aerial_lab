@@ -1,9 +1,8 @@
 #### No space left on device
-
 ```bash
-[Error] [carb] Failed to create change watch for `/home/wentao/miniconda3/envs/aeriallab/lib/python3.11/site-packages/isaacsim/extscache/omni.physx.fabric-107.3.18+107.3.1.lx64.r.cp311.u353/omni/physxfabric/scripts`: errno=28/No space left on device
+[Error] [carb] Failed to create change watch for `/{absolutePath}/miniconda3/envs/aeriallab/lib/python3.11/site-packages/isaacsim/extscache/omni.physx.fabric-107.3.18+107.3.1.lx64.r.cp311.u353/omni/physxfabric/scripts`: errno=28/No space left on device
 ```
-
+Just too many mesh files are imported in IsaacLab, set more large capacity
 ```bash
 echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
@@ -14,10 +13,10 @@ Add extra Python address
 ```json
 "python.analysis.extraPaths": [
         "${workspaceFolder}/source/aerial_lab",
-        "/home/wentao/rllab/IsaacLab/source/isaaclab",
-        "/home/wentao/rllab/IsaacLab/source/isaaclab_tasks",
-        "/home/wentao/rllab/IsaacLab/source/isaaclab_assets",
-        "/home/wentao/rllab/IsaacLab/source/isaaclab_rl"
+        "/{absolutePath}/rllab/IsaacLab/source/isaaclab",
+        "/{absolutePath}/rllab/IsaacLab/source/isaaclab_tasks",
+        "/{absolutePath}/rllab/IsaacLab/source/isaaclab_assets",
+        "/{absolutePath}/rllab/IsaacLab/source/isaaclab_rl"
     ],
 ```
 

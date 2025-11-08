@@ -311,11 +311,11 @@ class RotorGroup(nn.Module):
         # self.foc_dot.copy_(xdot)
 
         # # # # ideal system
-        # x = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
-        # self.foc.copy_(x)
-        # return x
-        self.foc.copy_(foc_cmd)
-        return foc_cmd
+        x = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
+        self.foc.copy_(x)
+        return x
+        # self.foc.copy_(foc_cmd)
+        # return foc_cmd
 
     def forward(self, cmd: torch.Tensor):
         if cmd.shape != (self.num_envs, self.num_rotors):

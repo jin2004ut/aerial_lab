@@ -41,8 +41,7 @@ from isaaclab.utils.math import (
 from aerial_lab.assets.aerialrobot import BEETLE_CFG, MINI_QUADROTOR_CFG  # isort: skip
 from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort: skip
 
-# from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
-from aerial_lab.actuators.rotor import Rotor  # isort: skip
+from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.utility.noisemodel import NoiseModel  # isort: skip
 
 
@@ -73,6 +72,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     sim_dt = 1 / 200.0
     decimation = 4
     episode_length_s = 10.0
+    max_curricular_steps = 8000.0
     # - spaces definition
     rotor_num = 4
     gimbal_num = 4
@@ -93,7 +93,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     thrust_limit = 16.0  # N
     # gimbal_limit = math.pi * 3 / 4  # rad
     gimbal_limit = math.pi * 0.5  # rad
-    state_space = 0
+    state_space = observation_space + action_space
 
     # custom parameters/scales
     debug_vis = True
@@ -113,7 +113,9 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     # reward scales
     lin_vel_reward_scale = -0.05
-    ang_vel_reward_scale = -1.0e-4  # -0.01
+    lin_vel_th = 3.0
+    ang_vel_reward_scale = -0.01  # -0.01
+    ang_vel_th = 6.0
     # reach_lin_vel_reward_scale = -0.05
     # reach_ang_vel_reward_scale = -0.1
     thrust_power_reward_scale = -2.0e-6  # -1.0e-4
@@ -125,41 +127,41 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     # # # # Noise Configuration
     noiseCfg = {
-        "root_pos": {
-            "type": "uniform",
-            "dim": 3,
-            "mean": 0.0,
-            "std": 0.02,
-            "clip": 0.3,
-        },
-        "lin_vel": {
-            "type": "uniform",
-            "dim": 3,
-            "mean": 0.0,
-            "std": 0.1,
-            "clip": 0.3,
-        },
-        "ang_vel": {
-            "type": "uniform",
-            "dim": 3,
-            "mean": 0.0,
-            "std": 0.3,
-            "clip": 0.3,
-        },
-        "gravity": {
-            "type": "uniform",
-            "dim": 3,
-            "mean": 0.0,
-            "std": 0.05,
-            "clip": 0.1,
-        },
-        "dof_pos": {
-            "type": "uniform",
-            "dim": gimbal_num,
-            "mean": 0.0,
-            "std": 0.02,
-            "clip": 0.1,
-        },
+        # "root_pos": {
+        #     "type": "uniform",
+        #     "dim": 3,
+        #     "mean": 0.0,
+        #     "std": 0.02,
+        #     "clip": 0.3,
+        # },
+        # "lin_vel": {
+        #     "type": "uniform",
+        #     "dim": 3,
+        #     "mean": 0.0,
+        #     "std": 0.1,
+        #     "clip": 0.3,
+        # },
+        # "ang_vel": {
+        #     "type": "uniform",
+        #     "dim": 3,
+        #     "mean": 0.0,
+        #     "std": 0.3,
+        #     "clip": 0.3,
+        # },
+        # "gravity": {
+        #     "type": "uniform",
+        #     "dim": 3,
+        #     "mean": 0.0,
+        #     "std": 0.05,
+        #     "clip": 0.1,
+        # },
+        # "dof_pos": {
+        #     "type": "uniform",
+        #     "dim": gimbal_num,
+        #     "mean": 0.0,
+        #     "std": 0.02,
+        #     "clip": 0.1,
+        # },
     }
 
     rotorCfg = {
@@ -304,22 +306,14 @@ class BeetleEnv(DirectRLEnv):
         print("Rotor IDs: ", self._rotor_ids)
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
-        self._rotors = Rotor(
-            env_num=self.num_envs,
-            directions=torch.tensor(self.cfg.rotor_direction, dtype=torch.float32, device=self.device),
-            thrust_coeff=1.0,
-            torque_coeff=self.cfg.thrust_to_torque_ratio,
+        self._rotors = RotorGroup(
+            cfg=cfg.rotorCfg,
+            devices=self.device,
+            num_envs=self.num_envs,
             rotor_ids=self._thrust_ids[0],
-            device=self.device,
+            rotor_names=self._thrust_ids[1],
+            rotor_directions=self.cfg.rotor_direction,
         )
-        # self._rotors = RotorGroup(
-        #     cfg=cfg.rotorCfg,
-        #     devices=self.device,
-        #     num_envs=self.num_envs,
-        #     rotor_ids=self._thrust_ids[0],
-        #     rotor_names=self._thrust_ids[1],
-        #     rotor_directions=self.cfg.rotor_direction,
-        # )
 
         self.set_debug_vis(self.cfg.debug_vis)
 
@@ -366,8 +360,7 @@ class BeetleEnv(DirectRLEnv):
         # action_thrust_force[:, 1] = 0.0
         # action_thrust_force[:, 2] = 1.0
         # action_thrust_force[:, 3] = 0.0
-        # self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force)
-        self._target_thrust_force, self._target_rotor_torque = self._rotors.compute_dynamics(self._action_thrust_force)
+        self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force)
         # #################################################
         # self._target_rotor_torque = (
         #     self.cfg.thrust_to_torque_ratio
@@ -388,33 +381,11 @@ class BeetleEnv(DirectRLEnv):
     def _apply_action(self) -> None:
         self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
 
-        # # # # Force/Torque from resultant rotor thrusts and torques
-        # target_thrust = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
-        # target_thrust[:, :, 2] = self._target_thrust_force
-        # target_torque = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
-        # body_force = torch.zeros(self.num_envs, 1, 3, device=self.device)
-        # body_torque = torch.zeros(self.num_envs, 1, 3, device=self.device)
-        # body_torque[:, 0, 2] = torch.sum(self._target_rotor_torque, dim=1)
-        # applied_thrust = torch.cat([target_thrust, body_force], dim=1)
-        # applied_torque = torch.cat([target_torque, body_torque], dim=1)
-        # applied_ids = self._thrust_ids[0] + self._body_id
-        # self._robot.set_external_force_and_torque(forces=applied_thrust, torques=applied_torque, body_ids=applied_ids)
-
-        # # # # Force/Torque from seperately rotors
-        # self._target_thrust_force[:, :, 2] = 0.0
-        # print("Applied thrust forces: ", self._target_thrust_force[0])
         self._robot.set_external_force_and_torque(
             forces=self._target_thrust_force,
             torques=self._target_rotor_torque,
             body_ids=self._thrust_ids[0],
         )
-        # print("Applied thrust forces: ", self._target_thrust_force[0])
-        # print("Applied rotor torques: ", self._target_rotor_torque[0])
-        # if torch.any(self._target_thrust_force[:, :, :] < 0.0):
-        #     print("\nNegative thrust applied:", self._target_thrust_force.transpose(0, 1))
-        #     print("Thrust Actions:", self._action_thrust_force.transpose(0, 1))
-        #     print("Original Actions:", self._actions.transpose(0, 1))
-        #     print("Negative thrust applied!")
 
     def _get_observations(self) -> dict:
         goal_pos_b, _ = subtract_frame_transforms(
@@ -443,30 +414,27 @@ class BeetleEnv(DirectRLEnv):
             ),
             dim=-1,
         )
-        # if "lin_vel" in self.noiseModel.params:
-        #     obs[:, 0:3] = self.noiseModel.apply(obs[:, 0:3], "lin_vel")
-        # if "ang_vel" in self.noiseModel.params:
-        #     obs[:, 3:6] = self.noiseModel.apply(obs[:, 3:6], "ang_vel")
-        # if "gravity" in self.noiseModel.params:
-        #     obs[:, 6:9] = self.noiseModel.apply(obs[:, 6:9], "gravity")
-        # if "root_pos" in self.noiseModel.params:
-        #     obs[:, 9:12] = self.noiseModel.apply(obs[:, 9:12], "root_pos")
-        # if "root_ang" in self.noiseModel.params:
-        #     obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
-        # if "dof_pos" in self.noiseModel.params:
-        #     obs[:, 9:9 + self.cfg.gimbal_num] = self.noiseModel.apply(
-        #         obs[:, :, 9:9 + self.cfg.gimbal_num], "dof_pos"
-        #     )
+        if "lin_vel" in self.noiseModel.params:
+            obs[:, 0:3] = self.noiseModel.apply(obs[:, 0:3], "lin_vel")
+        if "ang_vel" in self.noiseModel.params:
+            obs[:, 3:6] = self.noiseModel.apply(obs[:, 3:6], "ang_vel")
+        if "gravity" in self.noiseModel.params:
+            obs[:, 6:9] = self.noiseModel.apply(obs[:, 6:9], "gravity")
+        if "root_pos" in self.noiseModel.params:
+            obs[:, 9:12] = self.noiseModel.apply(obs[:, 9:12], "root_pos")
+        if "root_ang" in self.noiseModel.params:
+            obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
+        if "dof_pos" in self.noiseModel.params:
+            obs[:, 18 : 18 + self.cfg.gimbal_num] = self.noiseModel.apply(
+                obs[:, :, 18 : 18 + self.cfg.gimbal_num], "dof_pos"
+            )
         clip_obs = self.cfg.clip_observations
         obs = torch.clamp(obs, -clip_obs, clip_obs)
-
-        privilegeObs = self._get_states()
-        observations = {"policy": obs, "privilege": privilegeObs}
-
-        observations = {"policy": obs}
+        states = self._get_states()
+        observations = {"policy": obs, "critic": states}
         return observations
 
-    def _get_states(self) -> dict:
+    def _get_states(self) -> torch.Tensor:
         goal_pos_b, _ = subtract_frame_transforms(
             self._robot.data.root_pos_w, self._robot.data.root_quat_w, self._desired_pos_w
         )
@@ -505,8 +473,13 @@ class BeetleEnv(DirectRLEnv):
         self._position_error = pos_err
         self._angle_error = rot_err
 
-        lin_vel = torch.sum(torch.square(self._robot.data.root_lin_vel_b), dim=1)
-        ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
+        lin_vel_norm = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=1)
+        lin_vel_over = torch.clamp(lin_vel_norm - self.cfg.lin_vel_th, min=0.0)
+        lin_vel = torch.square(lin_vel_over)
+
+        ang_vel_norm = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=1)
+        ang_vel_over = torch.clamp(ang_vel_norm - self.cfg.ang_vel_th, min=0.0)
+        ang_vel = torch.square(ang_vel_over)
         # distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal = torch.linalg.norm(self._position_error, dim=1)
         # distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
@@ -671,7 +644,7 @@ class BeetleEnv(DirectRLEnv):
         extras["Metrics/avg_goal_ang_vel_x"] = goal_ang_vel_avg[0].item()
         extras["Metrics/avg_goal_ang_vel_y"] = goal_ang_vel_avg[1].item()
         extras["Metrics/avg_goal_ang_vel_z"] = goal_ang_vel_avg[2].item()
-        extras["Metrics/sample_rate"] = self._sim_step_counter / self.max_episode_length
+        extras["Metrics/sample_rate"] = self.common_step_counter / self.cfg.max_curricular_steps
         self.extras["log"].update(extras)
 
         self._robot.reset(env_ids)
@@ -736,19 +709,27 @@ class BeetleEnv(DirectRLEnv):
         #     self._desired_pos_w[sample_pos_env_ids, 2] = torch.empty_like(
         #         self._desired_pos_w[sample_pos_env_ids, 2]
         #     ).uniform_(0.5, 2.5)
-        quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
-        pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
-        # quat_sample_rate = self._sim_step_counter / 8000.0 * 2  # start from 0.3, reach 0.8
-        # pos_sample_rate = self._sim_step_counter / 8000.0 * 2  # start from 0.1, reach 0.6
+        # quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
+        # pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
+        quat_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.3, reach 0.8
+        pos_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.1, reach 0.6
         quat_sample_rate = max(quat_sample_rate - 0.20, 0.0)
         pos_sample_rate = max(pos_sample_rate - 0.06, 0.0)
         ang_range = min(math.pi * 0.5 * quat_sample_rate, math.pi * 0.45)
         pos_range = min(5.0 * pos_sample_rate, 5.0)
         pos_range_z = min(1.0 * pos_sample_rate, 1.0)
 
+        # # # # Debug
+        ang_range = 0.0
+        pos_range = 0.0
+        pos_range_z = 0.0
+
         # Euler ZYX[a,b,c] = RPY[c,b,a]
+        # self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
+        #     -math.pi, math.pi
+        # )
         self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
-            -math.pi, math.pi
+            -0.0, 0.0
         )
         self._desired_zyx_euler_w[env_ids, 1] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 1]).uniform_(
             -ang_range, ang_range

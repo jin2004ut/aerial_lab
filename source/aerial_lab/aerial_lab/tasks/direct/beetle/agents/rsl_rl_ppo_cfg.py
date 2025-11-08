@@ -14,9 +14,13 @@ from isaaclab_rl.rsl_rl import (
 @configclass
 class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 40000
-    save_interval = 500
+    max_iterations = 8000
+    save_interval = 200
     experiment_name = "beetle_direct"
+    obs_groups = {
+        "policy": ["policy"],
+        "critic": ["critic"],
+    }
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_obs_normalization=False,
@@ -32,7 +36,7 @@ class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
         entropy_coef=0.0,
         num_learning_epochs=5,
         num_mini_batches=4,
-        learning_rate=2.5e-4,  # default 5.0e-4
+        learning_rate=5.0e-4,  # default 5.0e-4
         schedule="adaptive",
         gamma=0.99,
         lam=0.95,
