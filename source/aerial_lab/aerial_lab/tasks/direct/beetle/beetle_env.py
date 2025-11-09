@@ -9,12 +9,14 @@ import math
 from collections.abc import Sequence
 
 import gymnasium as gym
+import isaaclab.envs.mdp as mdp
 import isaaclab.sim as sim_utils
 import torch
-from aerial_lab.actuators.rotor import Rotor
 from isaaclab.assets import Articulation, ArticulationCfg
 from isaaclab.envs import DirectRLEnv, DirectRLEnvCfg
 from isaaclab.envs.ui import BaseEnvWindow
+from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import SceneEntityCfg
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensor, ContactSensorCfg, Imu, ImuCfg
@@ -67,12 +69,64 @@ class PoseTrackingEnvWindow(BaseEnvWindow):
 
 
 @configclass
+class EventCfg:
+    """Configuration for randomization."""
+
+    # Always got error: TypeError: randomize_rigid_body_mass.__init__() got an unexpected keyword argument 'asset_cfg'
+    scale_base_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
+            "mass_distribution_params": (0.90, 1.10),
+            "operation": "scale",
+        },
+    )
+    # # # # So we define a new function in events.py
+    # scale_base_mass = EventTerm(
+    #     func=mdp.randomize_rigid_body_mass_hand,
+    #     mode="reset",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
+    #         "mass_distribution_params": (0.1, 2.0),
+    #         "operation": "scale",
+    #     },
+    # )
+
+    noise_com_pos = EventTerm(
+        func=mdp.randomize_rigid_body_com,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
+            "com_range": {"x": (-0.01, 0.01), "y": (-0.01, 0.01), "z": (-0.01, 0.01)},
+        },
+    )
+
+    # interval
+    push_robot = EventTerm(
+        func=mdp.push_by_setting_velocity,
+        mode="interval",
+        interval_range_s=(10.0, 15.0),
+        params={
+            "velocity_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "z": (-0.5, 0.5),
+                "roll": (-0.5, 0.5),
+                "pitch": (-0.5, 0.5),
+                "yaw": (-0.5, 0.5),
+            }
+        },
+    )
+
+
+@configclass
 class BeetleEnvCfg(DirectRLEnvCfg):
     # env
     sim_dt = 1 / 200.0
     decimation = 4
     evaluate_mode = False
-    episode_length_s = 10.0
+    episode_length_s = 15.0
     max_curricular_steps = 8000.0
     # - spaces definition
     rotor_num = 4
@@ -253,6 +307,8 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         debug_vis=True,
     )
 
+    events: EventCfg = EventCfg()
+
 
 class BeetleEnv(DirectRLEnv):
     cfg: BeetleEnvCfg
@@ -298,6 +354,7 @@ class BeetleEnv(DirectRLEnv):
         self._body_id = self._robot.find_bodies("root")[0]
         self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum()
         self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm()
+        self._robot_default_com = self._robot.data.body_com_pose_b[0, self._body_id].clone().cpu().numpy()
 
         self._imu_id = self._robot.find_bodies(self.cfg.imu_link_name)[0]
         _body_pos_w = self._robot.data.body_pos_w[:, self._body_id]
@@ -410,7 +467,7 @@ class BeetleEnv(DirectRLEnv):
         # action_thrust_force[:, 1] = 0.0
         # action_thrust_force[:, 2] = 1.0
         # action_thrust_force[:, 3] = 0.0
-        self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force)
+        self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force * 0.0)
         # #################################################
         # self._target_rotor_torque = (
         #     self.cfg.thrust_to_torque_ratio
@@ -430,12 +487,21 @@ class BeetleEnv(DirectRLEnv):
 
     def _apply_action(self) -> None:
         self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
+        # self._robot.set_external_force_and_torque(
+        #     forces=self._target_thrust_force,
+        #     torques=self._target_rotor_torque,
+        #     body_ids=self._thrust_ids[0],
+        # )
 
-        self._robot.set_external_force_and_torque(
-            forces=self._target_thrust_force,
-            torques=self._target_rotor_torque,
-            body_ids=self._thrust_ids[0],
-        )
+        # env_ids = 1
+        # if self.common_step_counter % 200 == 0:
+        #     print(f"Debug Envent {env_ids}  Reset: ==========================================================")
+        #     robot_mass = self._robot.root_physx_view.get_masses()[env_ids].sum()
+        #     print(f"Robot [{env_ids}] mass: {robot_mass:.4f}, default mass: {self._robot_mass:.4f}")
+        #     root_com = self._robot.data.body_com_pose_w[env_ids, self._body_id].clone().cpu().numpy()
+        #     root_com_str = ", ".join(f"{x:.4f}" for x in root_com.flatten())
+        #     default_com_str = ", ".join(f"{x:.4f}" for x in self._robot_default_com.flatten())
+        #     print(f"Robot [{env_ids}] root com: [{root_com_str}], default com: [{default_com_str}]")
 
     def _get_observations(self) -> dict:
         goal_pos_b, _ = subtract_frame_transforms(
@@ -668,7 +734,7 @@ class BeetleEnv(DirectRLEnv):
         # print(torch.linalg.norm(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1))  # die if in contact with the ground
         # print(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
         # print(self._contact_sensor.data.net_forces_w.squeeze(1))
-        # died = torch.zeros_like(time_out, dtype=torch.bool)
+        died = torch.zeros_like(time_out, dtype=torch.bool)
         return died, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
@@ -818,16 +884,18 @@ class BeetleEnv(DirectRLEnv):
         default_root_state = self._robot.data.default_root_state[env_ids]
         default_root_state[:, :3] += self._terrain.env_origins[env_ids]
 
-        init_rp = torch.empty_like(self._desired_zyx_euler_w[env_ids, :2]).uniform_(-math.pi * 0.5, math.pi * 0.5)
-        init_y = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(-math.pi, math.pi)
-        init_quat = quat_from_euler_xyz(
-            init_rp[:, 0],
-            init_rp[:, 1],
-            init_y,
-        )
-        default_root_state[:, 3:7] = init_quat
-        default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.obsScales.lin_vel
-        default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.obsScales.ang_vel
+        default_root_state[:, 2] = 0.05
+        # init_rp = torch.empty_like(self._desired_zyx_euler_w[env_ids, :2]).uniform_(-math.pi * 0.5, math.pi * 0.5)
+        # init_y = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(-math.pi, math.pi)
+        # init_quat = quat_from_euler_xyz(
+        #     init_rp[:, 0],
+        #     init_rp[:, 1],
+        #     init_y,
+        # )
+        # default_root_state[:, 3:7] = init_quat
+        # default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.obsScales.lin_vel
+        # default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.obsScales.ang_vel
+        print(f"Reset Env {env_ids} to pos: ", default_root_state)
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
@@ -841,6 +909,14 @@ class BeetleEnv(DirectRLEnv):
         #     self._desired_quat_w[unsampled_quat_env_ids] = self._robot.data.default_root_state[
         #         unsampled_quat_env_ids, 3:7
         #     ]
+
+        print(f"Debug Envent {env_ids}  Reset: ==========================================================")
+        robot_mass = self._robot.root_physx_view.get_masses()[env_ids].sum()
+        print(f"Robot [{env_ids}] mass: {robot_mass:.4f}, default mass: {self._robot_mass:.4f}")
+        root_com = self._robot.data.body_com_pose_w[env_ids, self._body_id].clone().cpu().numpy()
+        root_com_str = ", ".join(f"{x:.4f}" for x in root_com.flatten())
+        default_com_str = ", ".join(f"{x:.4f}" for x in self._robot_default_com.flatten())
+        print(f"Robot [{env_ids}] root com: [{root_com_str}], default com: [{default_com_str}]")
 
     def _set_debug_vis_impl(self, debug_vis: bool):
         # create markers if necessary for the first time
