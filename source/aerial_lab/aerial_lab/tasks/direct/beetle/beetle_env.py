@@ -72,8 +72,8 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     sim_dt = 1 / 200.0
     decimation = 4
     evaluate_mode = False
-    episode_length_s = 10.0
-    max_curricular_steps = 8000.0
+    episode_length_s = 15.0
+    max_curricular_steps = 8000.0 * 24  # num_steps_per_env * max_iterations
     # - spaces definition
     rotor_num = 4
     gimbal_num = 4
@@ -97,6 +97,10 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     debug_vis = True
 
     ui_window_class_type = PoseTrackingEnvWindow
+
+    class randomization:
+        lin_vel = 1.0
+        ang_vel = 1.5
 
     class normalization:
         class obs_scales:
@@ -133,6 +137,9 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # quat_error_to_goal_reward_scale = -6.0
     # angular_to_goal_reward_scale = 3.0
     angular_error_to_goal_reward_scale = -5.0
+
+    died_reward_scale = -2.0
+    reach_goal_reward_scale = 1.0
 
     # # # # Noise Configuration
     noiseCfg = {
@@ -262,6 +269,12 @@ class BeetleEnv(DirectRLEnv):
         # Basic cfgs
         self.obsScales = cfg.normalization.obs_scales
         self.noiseModel = NoiseModel(cfg.noiseCfg, device=self.device, num_envs=self.num_envs)
+        self.randomCfg = cfg.randomization
+
+        self._quat_sample_rate = 0.0
+        self._pos_sample_rate = 0.0
+        self._reach_goal_count = torch.zeros(self.num_envs, device=self.device)
+        self._reach_goal = torch.zeros(self.num_envs, device=self.device)
 
         # Total thrust and moment applied to the base of the quadcopter
         self._actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device)
@@ -581,7 +594,7 @@ class BeetleEnv(DirectRLEnv):
         total_reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
 
         # Early termination penalty
-        die_reward = self.reset_terminated.to(torch.float32) * -30.0
+        die_reward = self.reset_terminated.to(torch.float32) * self.cfg.died_reward_scale * self.max_episode_length_s
         total_reward += die_reward
         rewards["died"] = die_reward
 
@@ -614,30 +627,37 @@ class BeetleEnv(DirectRLEnv):
             torch.logical_and(ang_vel_norm < ANG_VEL_TH, lin_vel_norm < LIN_VEL_TH),
             torch.logical_and(angular_to_goal < ANG_TH, distance_to_goal < POS_TH),
         )
-        reach_goal_reward = self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 10.0
+        self._reach_goal_count = reach_goal.to(torch.float32) * (self._reach_goal_count + 1)
+        self._reach_goal = reach_goal.to(torch.float32) * 1.0
+        reach_goal_reward = (
+            self.reset_time_outs.to(torch.float32)
+            * reach_goal.to(torch.float32)
+            * self.cfg.reach_goal_reward_scale
+            * self.max_episode_length_s
+        )
         reach_goal_reward = (
             torch.exp((POS_TH - distance_to_goal) / POS_TH)
             * self.reset_time_outs.to(torch.float32)
             * reach_goal.to(torch.float32)
-            * 20.0
+            * self.max_episode_length_s
         )
         reach_goal_reward = (
             torch.exp((ANG_TH - angular_to_goal) / ANG_TH)
             * self.reset_time_outs.to(torch.float32)
             * reach_goal.to(torch.float32)
-            * 20.0
+            * self.max_episode_length_s
         )
         reach_goal_reward = (
             torch.exp((LIN_VEL_TH - lin_vel_norm) / LIN_VEL_TH)
             * self.reset_time_outs.to(torch.float32)
             * reach_goal.to(torch.float32)
-            * 20.0
+            * self.max_episode_length_s
         )
         reach_goal_reward = (
             torch.exp((ANG_VEL_TH - ang_vel_norm) / ANG_VEL_TH)
             * self.reset_time_outs.to(torch.float32)
             * reach_goal.to(torch.float32)
-            * 20.0
+            * self.max_episode_length_s
         )
         reach_goal_reward = torch.clamp(reach_goal_reward, min=0.0, max=40.0)
         total_reward += reach_goal_reward
@@ -705,7 +725,10 @@ class BeetleEnv(DirectRLEnv):
         extras["Metrics/avg_goal_ang_vel_x"] = goal_ang_vel_avg[0].item()
         extras["Metrics/avg_goal_ang_vel_y"] = goal_ang_vel_avg[1].item()
         extras["Metrics/avg_goal_ang_vel_z"] = goal_ang_vel_avg[2].item()
-        extras["Metrics/sample_rate"] = self.common_step_counter / self.cfg.max_curricular_steps
+        extras["Metrics/quat_sample_rate"] = self._quat_sample_rate
+        extras["Metrics/pos_sample_rate"] = self._pos_sample_rate
+        extras["Metrics/reach_goal_reset"] = torch.sum(self._reach_goal[env_ids]).item()
+        extras["Metrics/reach_goal_count"] = torch.mean(self._reach_goal_count).item()
         self.extras["log"].update(extras)
 
         self._robot.reset(env_ids)
@@ -772,10 +795,8 @@ class BeetleEnv(DirectRLEnv):
         #     ).uniform_(0.5, 2.5)
         # quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
         # pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
-        # quat_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.3, reach 0.8
-        # pos_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.1, reach 0.6
-        quat_sample_rate = self.common_step_counter / 8000.0 * 2  # start from 0.3, reach 0.8
-        pos_sample_rate = self.common_step_counter / 8000.0 * 2  # start from 0.1, reach 0.6
+        quat_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 4  # start from 0.3, reach 0.8
+        pos_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 4  # start from 0.1, reach 0.6
         quat_sample_rate = max(quat_sample_rate - 0.20, 0.0)
         pos_sample_rate = max(pos_sample_rate - 0.10, 0.0)
 
@@ -783,9 +804,13 @@ class BeetleEnv(DirectRLEnv):
             quat_sample_rate = 1.0
             pos_sample_rate = 1.0
 
-        ang_range = min(math.pi * 0.5 * quat_sample_rate, math.pi * 0.45)
-        pos_range = min(5.0 * pos_sample_rate, 5.0)
-        pos_range_z = min(1.0 * pos_sample_rate, 1.0)
+        quat_sample_rate = min(quat_sample_rate, 1.0)
+        pos_sample_rate = min(pos_sample_rate, 1.0)
+        self._quat_sample_rate = quat_sample_rate
+        self._pos_sample_rate = pos_sample_rate
+        ang_range = math.pi * 0.45 * quat_sample_rate
+        pos_range = 5.0 * pos_sample_rate
+        pos_range_z = 1.0 * pos_sample_rate
 
         # Euler ZYX[a,b,c] = RPY[c,b,a]
         self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
@@ -826,8 +851,10 @@ class BeetleEnv(DirectRLEnv):
             init_y,
         )
         default_root_state[:, 3:7] = init_quat
-        default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.obsScales.lin_vel
-        default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.obsScales.ang_vel
+        # Linear velocity
+        default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.randomCfg.lin_vel
+        # Angular velocity
+        default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.randomCfg.ang_vel
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
