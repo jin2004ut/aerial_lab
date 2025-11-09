@@ -47,7 +47,7 @@ def main():
     env_cfg = parse_env_cfg(
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
-    env_cfg.scene.env_spacing = 0.5
+    env_cfg.scene.env_spacing = 1.0
     # create environment
     env = gym.make(args_cli.task, cfg=env_cfg)
 

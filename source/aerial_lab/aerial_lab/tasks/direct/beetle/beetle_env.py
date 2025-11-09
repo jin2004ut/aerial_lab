@@ -71,6 +71,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # env
     sim_dt = 1 / 200.0
     decimation = 4
+    evaluate_mode = False
     episode_length_s = 10.0
     max_curricular_steps = 8000.0
     # - spaces definition
@@ -90,9 +91,6 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # rotor_direction = [1, 1, 1, 1]
     contact_force_threshold = 0.1
 
-    thrust_limit = 16.0  # N
-    # gimbal_limit = math.pi * 3 / 4  # rad
-    gimbal_limit = math.pi * 0.5  # rad
     state_space = observation_space + action_space
 
     # custom parameters/scales
@@ -105,14 +103,25 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             ang_vel = 0.2
             lin_vel = 1.0
 
-    clip_observations = 100.0
-    clip_actions = 100.0
-    # class control:
-    gimbal_action_scale = 0.25
-    thrust_action_scale = 1.25
+    class control:
+        clip_observations = 100.0
+        clip_actions = 100.0
+        # class control:
+        gimbal_action_scale = 0.25
+        thrust_action_scale = 1.25
+
+        thrust_limit = 16.0  # N
+        hover_thrust = 7.0  # N
+        # gimbal_limit = math.pi * 3 / 4  # rad
+        default_gimbal_pos = {
+            "gimbal": 0.0,
+        }
+        limit_gimbal_pos = {
+            "gimbal": math.pi * 0.5,
+        }
 
     # reward scales
-    lin_vel_reward_scale = -0.05
+    lin_vel_reward_scale = -0.02
     lin_vel_th = 3.0
     ang_vel_reward_scale = -0.01  # -0.01
     ang_vel_th = 6.0
@@ -171,7 +180,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         "thrust_coeff": 1.0,
         "torque_coeff": thrust_to_torque_ratio,
         "max_vel": 200.0,
-        "max_foc": thrust_limit,
+        "max_foc": control.thrust_limit,
         "vel_wn": 1.0,
         "vel_zeta": 0.8,
         "foc_wn": 1.0,
@@ -232,8 +241,9 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     )
 
     # https://isaac-sim.github.io/IsaacLab/main/source/api/lab/isaaclab.sensors.html#inertia-measurement-unit
+    imu_link_name = "fc"
     imu_sensor: ImuCfg = ImuCfg(
-        prim_path="/World/envs/env_.*/Robot/base_link",
+        prim_path="/World/envs/env_.*/Robot/fc",
         update_period=0,
         history_length=1,
         offset=ImuCfg.OffsetCfg(
@@ -275,7 +285,6 @@ class BeetleEnv(DirectRLEnv):
                 "lin_vel",
                 "ang_vel",
                 "distance_to_goal",
-                "reach_ang_vel",
                 "thrust_power",
                 # "goal_orientation",
                 # "quat_to_goal",
@@ -289,21 +298,62 @@ class BeetleEnv(DirectRLEnv):
         self._body_id = self._robot.find_bodies("root")[0]
         self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum()
         self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm()
+
+        self._imu_id = self._robot.find_bodies(self.cfg.imu_link_name)[0]
+        _body_pos_w = self._robot.data.body_pos_w[:, self._body_id]
+        _body_quat_w = self._robot.data.body_quat_w[:, self._body_id]
+        _imu_pos_w = self._robot.data.body_pos_w[:, self._imu_id]
+        _imu_quat_w = self._robot.data.body_quat_w[:, self._imu_id]
+        self._imu_pos_body, self._imu_quat_body = subtract_frame_transforms(
+            _body_pos_w,
+            _body_quat_w,
+            _imu_pos_w,
+            _imu_quat_w,
+        )
+
+        self.cfg.imu_sensor.offset.pos = self._imu_pos_body[0, 0, :].cpu().numpy().tolist()
+        self.cfg.imu_sensor.offset.rot = self._imu_quat_body[0, 0, :].cpu().numpy().tolist()
+
         self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
         self._thrust_ids = self._robot.find_bodies("rotor_parent.*")
         self._gimbal_ids = self._robot.find_joints("gimbal.*")
         self._rotor_ids = self._robot.find_joints("rotor.*")
 
+        self.ctrlCfg = self.cfg.control
+
+        gimbal_default_pos = torch.tensor(
+            [
+                self.ctrlCfg.default_gimbal_pos.get(
+                    joint_name,
+                    self.ctrlCfg.default_gimbal_pos.get("gimbal", 0.0),
+                )
+                for joint_name in self._gimbal_ids[1]
+            ],
+            device=self.device,
+            dtype=torch.float32,
+        )
+        self._gimbal_default_pos = gimbal_default_pos.unsqueeze(0).expand(self.num_envs, -1).clone()
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print("Beetle robot link list: ")
-        for link in self._robot.body_names:
-            print(f" - {link}")
-        print("Beetle robot joint list: ")
-        for joint in self._robot.joint_names:
-            print(f" - {joint}")
-        print("Thrust IDs: ", self._thrust_ids)
-        print("Gimbal IDs: ", self._gimbal_ids)
-        print("Rotor IDs: ", self._rotor_ids)
+        # print("Beetle robot link list: ")
+        # for link in self._robot.body_names:
+        #     print(f" - {link}")
+        # print("Beetle robot joint list: ")
+        # for joint in self._robot.joint_names:
+        #     print(f" - {joint}")
+        print("Root Body ID: ", self._body_id, " Name: ", "root")
+        print("Robot Mass: ", self._robot_mass)
+        print("Gravity Magnitude: ", self._gravity_magnitude)
+        print("IMU Body ID: ", self._imu_id, " Name: ", self.cfg.imu_link_name)
+        print("IMU Offset Position (body frame): ", [round(x, 4) for x in self.cfg.imu_sensor.offset.pos])
+        print("IMU Offset Rotation (body frame): ", [round(x, 4) for x in self.cfg.imu_sensor.offset.rot])
+        print("IMU Position Offset Shape: ", self._imu_pos_body.shape)
+        print("IMU Rotation Offset Shape: ", self._imu_quat_body.shape)
+        print("Thrust Names: ", self._thrust_ids[1])
+        print("Gimbal IDs: ", self._gimbal_ids[0])
+        print("Gimbal Names: ", self._gimbal_ids[1])
+        print("Gimbal Default Positions: ", self._gimbal_default_pos[0])
+        print("Rotor IDs: ", self._rotor_ids[0])
+        print("Rotor Names: ", self._rotor_ids[1])
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
         self._rotors = RotorGroup(
@@ -344,13 +394,13 @@ class BeetleEnv(DirectRLEnv):
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self._last_actions = self._actions.clone()
-        clip_actions = self.cfg.clip_actions
+        clip_actions = self.ctrlCfg.clip_actions
         self._actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)  # TODO: check action limits
         self._action_gimbal_pos = (
-            self._actions[:, : self.cfg.gimbal_num] * self.cfg.gimbal_action_scale
+            self._actions[:, : self.cfg.gimbal_num] * self.ctrlCfg.gimbal_action_scale + self._gimbal_default_pos
         )  # scale to [-1.57, 1.57] rad
         self._action_thrust_force = (
-            self._actions[:, self.cfg.gimbal_num :] * self.cfg.thrust_action_scale
+            self._actions[:, self.cfg.gimbal_num :] * self.ctrlCfg.thrust_action_scale + self.ctrlCfg.hover_thrust
         )  # shape: (N, 4)
         # print("Gimbal Positions: ", self._action_gimbal_pos[0])
         # print("Thrust Forces: ", action_thrust_force[0])
@@ -398,6 +448,17 @@ class BeetleEnv(DirectRLEnv):
         goal_rot_mat = matrix_from_quat(self._desired_quat_w)
         goal_rot_vec = goal_rot_mat[:, :2, :].reshape(self.num_envs, 6)
 
+        # IMU Debug Info
+        # imu_ang_vel_b = quat_apply(self._imu_quat_body, self._robot.data.body_ang_vel_w[:, self._imu_id])
+        # print("IMU Link   Ang Vel (body frame): ", imu_ang_vel_b[0])
+        # print("Root       Ang Vel (body frame): ", self._robot.data.root_ang_vel_b[0])
+        # print("IMU Sensor Ang Vel (body frame): ", self._imu_sensor.data.ang_vel_b[0])
+        # # _robot.data.projected_gravity_b = quat_apply_inverse(self.root_link_quat_w, self.GRAVITY_VEC_W)
+        # imu_gravity_b = quat_apply(self._imu_quat_body, self._robot.data.GRAVITY_VEC_W)
+        # print("IMU Link   Prj Gra (body frame): ", imu_gravity_b[0])
+        # print("Root       Prj Gra (body frame): ", self._robot.data.projected_gravity_b[0])
+        # print("IMU Sensor Prj Gra (body frame): ", self._imu_sensor.data.projected_gravity_b[0])
+
         angular_error = self._angle_error
 
         obs = torch.cat(
@@ -407,7 +468,7 @@ class BeetleEnv(DirectRLEnv):
                 self._robot.data.projected_gravity_b,
                 goal_pos_b,
                 angular_error,
-                self._robot.data.joint_pos[:, self._gimbal_ids[0]],
+                self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos,
                 root_rot_vec,
                 goal_rot_vec,
                 self._last_actions,
@@ -428,7 +489,7 @@ class BeetleEnv(DirectRLEnv):
             obs[:, 18 : 18 + self.cfg.gimbal_num] = self.noiseModel.apply(
                 obs[:, :, 18 : 18 + self.cfg.gimbal_num], "dof_pos"
             )
-        clip_obs = self.cfg.clip_observations
+        clip_obs = self.ctrlCfg.clip_observations
         obs = torch.clamp(obs, -clip_obs, clip_obs)
         states = self._get_states()
         observations = {"policy": obs, "critic": states}
@@ -454,7 +515,7 @@ class BeetleEnv(DirectRLEnv):
                 self._robot.data.projected_gravity_b,
                 goal_pos_b,
                 angular_error,
-                self._robot.data.joint_pos[:, self._gimbal_ids[0]],
+                self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos,
                 root_rot_vec,
                 goal_rot_vec,
                 self._last_actions,
@@ -711,25 +772,24 @@ class BeetleEnv(DirectRLEnv):
         #     ).uniform_(0.5, 2.5)
         # quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
         # pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
-        quat_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.3, reach 0.8
-        pos_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.1, reach 0.6
+        # quat_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.3, reach 0.8
+        # pos_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.1, reach 0.6
+        quat_sample_rate = self.common_step_counter / 8000.0 * 2  # start from 0.3, reach 0.8
+        pos_sample_rate = self.common_step_counter / 8000.0 * 2  # start from 0.1, reach 0.6
         quat_sample_rate = max(quat_sample_rate - 0.20, 0.0)
-        pos_sample_rate = max(pos_sample_rate - 0.06, 0.0)
+        pos_sample_rate = max(pos_sample_rate - 0.10, 0.0)
+
+        if self.cfg.evaluate_mode:
+            quat_sample_rate = 1.0
+            pos_sample_rate = 1.0
+
         ang_range = min(math.pi * 0.5 * quat_sample_rate, math.pi * 0.45)
         pos_range = min(5.0 * pos_sample_rate, 5.0)
         pos_range_z = min(1.0 * pos_sample_rate, 1.0)
 
-        # # # # Debug
-        ang_range = 0.0
-        pos_range = 0.0
-        pos_range_z = 0.0
-
         # Euler ZYX[a,b,c] = RPY[c,b,a]
-        # self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
-        #     -math.pi, math.pi
-        # )
         self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
-            -0.0, 0.0
+            -math.pi, math.pi
         )
         self._desired_zyx_euler_w[env_ids, 1] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 1]).uniform_(
             -ang_range, ang_range
@@ -749,7 +809,7 @@ class BeetleEnv(DirectRLEnv):
         )
         self._desired_pos_w[env_ids, :2] += self._terrain.env_origins[env_ids, :2]
         self._desired_pos_w[env_ids, 2] = torch.empty_like(self._desired_pos_w[env_ids, 2]).uniform_(
-            max(0.5, 1 - pos_range_z), min(1 + pos_range_z, 3.0)
+            max(1.0, 1.5 - pos_range_z), min(1.5 + pos_range_z, 3.0)
         )
 
         # Reset robot state
