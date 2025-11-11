@@ -103,6 +103,14 @@ Play trained policy with specific checkpoint
 python scripts/rsl_rl/play.py --task=Beetle-Direct-Pose-v0 --checkpoint=logs/rsl_rl/beetle_direct/2025-10-31_13-34-44/model_8000.pt  --num_envs=64
 ```
 
+Switch to log/git/diff
+```bash
+### exact diff file
+awk '/^diff --git /,0' logs/rsl_rl/beetle_direct/2025-11-11_10-06-52/git/aerial_lab.diff > clean.diff
+### apply diff
+git apply clean.diff
+```
+
 ### URDF Visualizer
 isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`. So, we recommend to get `.urdf` file.
 - convert `.xacro` to `.urdf`
