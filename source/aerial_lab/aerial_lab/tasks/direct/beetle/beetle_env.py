@@ -43,6 +43,7 @@ from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort
 
 from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.utility.noisemodel import NoiseModel  # isort: skip
+from aerial_lab.utility.math import samlpeUniformQuatwithTilt  # isort: skip
 
 
 class PoseTrackingEnvWindow(BaseEnvWindow):
@@ -571,7 +572,8 @@ class BeetleEnv(DirectRLEnv):
         ang_vel_static = torch.square(torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=1))
         # distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal = torch.linalg.norm(self._position_error, dim=1)
-        distance_to_goal_mapped = torch.tanh(distance_to_goal / 0.6)
+        distance_to_goal_mapped = torch.square(torch.tanh(distance_to_goal / 0.6))
+        # distance_to_goal_mapped = torch.tanh(distance_to_goal / 0.6)
         # distance_to_goal_mapped = torch.square(distance_to_goal / 2.0)
         # distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
         # distance_to_goal_mapped = torch.exp(-2 * distance_to_goal)
@@ -650,36 +652,23 @@ class BeetleEnv(DirectRLEnv):
             torch.logical_and(angular_to_goal < ANG_TH, distance_to_goal < POS_TH),
         )
         self._reach_goal_count += reach_goal.to(torch.float32) * self.reset_time_outs.to(torch.float32)
-        self._reach_goal = reach_goal.to(torch.float32) * 1.0 * self.reset_time_outs.to(torch.float32)
+        self._reach_goal = reach_goal.to(torch.float32) * self.reset_time_outs.to(torch.float32)
         reach_goal_reward_timeout = (
-            self.reset_time_outs.to(torch.float32)
-            * reach_goal.to(torch.float32)
-            * self.episode_length_buf
+            self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * self.episode_length_buf
         )
         reach_goal_reward = torch.zeros_like(reach_goal_reward_timeout)
+        reach_goal_reward += reach_goal.to(torch.float32) * self.step_dt
         reach_goal_reward += (
-            reach_goal.to(torch.float32)
-            * self.step_dt
+            torch.exp((POS_TH - distance_to_goal) / POS_TH) * reach_goal.to(torch.float32) * self.step_dt
         )
         reach_goal_reward += (
-            torch.exp((POS_TH - distance_to_goal) / POS_TH)
-            * reach_goal.to(torch.float32)
-            * self.step_dt
+            torch.exp((ANG_TH - angular_to_goal) / ANG_TH) * reach_goal.to(torch.float32) * self.step_dt
         )
         reach_goal_reward += (
-            torch.exp((ANG_TH - angular_to_goal) / ANG_TH)
-            * reach_goal.to(torch.float32)
-            * self.step_dt
+            torch.exp((LIN_VEL_TH - lin_vel_norm) / LIN_VEL_TH) * reach_goal.to(torch.float32) * self.step_dt
         )
         reach_goal_reward += (
-            torch.exp((LIN_VEL_TH - lin_vel_norm) / LIN_VEL_TH)
-            * reach_goal.to(torch.float32)
-            * self.step_dt
-        )
-        reach_goal_reward += (
-            torch.exp((ANG_VEL_TH - ang_vel_norm) / ANG_VEL_TH)
-            * reach_goal.to(torch.float32)
-            * self.step_dt
+            torch.exp((ANG_VEL_TH - ang_vel_norm) / ANG_VEL_TH) * reach_goal.to(torch.float32) * self.step_dt
         )
 
         # self._reach_goal_count = reach_goal.to(torch.float32) * (self._reach_goal_count + 1) * self.reset_time_outs.to(torch.float32)
@@ -745,6 +734,7 @@ class BeetleEnv(DirectRLEnv):
         # print(torch.linalg.norm(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1))  # die if in contact with the ground
         # print(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
         # print(self._contact_sensor.data.net_forces_w.squeeze(1))
+        # # # DEBUG
         # died = torch.zeros_like(time_out, dtype=torch.bool)
         return died, time_out
 
@@ -752,10 +742,14 @@ class BeetleEnv(DirectRLEnv):
         if env_ids is None:
             env_ids = self._robot._ALL_INDICES
 
-        quat_sample_rate = (self.common_step_counter - 200 * 24) / self.cfg.max_curricular_steps * 4  # start from 0.3, reach 0.8
-        pos_sample_rate = (self.common_step_counter - 50 * 24) / self.cfg.max_curricular_steps * 8  # start from 0.1, reach 0.6
-        quat_sample_rate = max(quat_sample_rate , 0.0)
-        pos_sample_rate = max(pos_sample_rate , 0.0)
+        quat_sample_rate = (
+            (self.common_step_counter - 200 * 24) / self.cfg.max_curricular_steps * 4
+        )  # start from 0.3, reach 0.8
+        pos_sample_rate = (
+            (self.common_step_counter - 50 * 24) / self.cfg.max_curricular_steps * 8
+        )  # start from 0.1, reach 0.6
+        quat_sample_rate = max(quat_sample_rate, 0.0)
+        pos_sample_rate = max(pos_sample_rate, 0.0)
 
         if self.cfg.evaluate_mode:
             quat_sample_rate = 1.0
@@ -890,17 +884,18 @@ class BeetleEnv(DirectRLEnv):
         pos_range_z = 1.0 * pos_sample_rate
 
         # Euler ZYX[a,b,c] = RPY[c,b,a]
-        self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
-            -math.pi, math.pi
-        )
-        self._desired_zyx_euler_w[env_ids, 1] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 1]).uniform_(
-            -ang_range, ang_range
-        )
-        self._desired_zyx_euler_w[env_ids, 2] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(
-            -ang_range, ang_range
-        )
-        desired_matrix = matrix_from_euler(self._desired_zyx_euler_w[env_ids], "ZYX")
-        self._desired_quat_w[env_ids] = quat_from_matrix(desired_matrix)
+        # self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
+        #     -math.pi, math.pi
+        # )
+        # self._desired_zyx_euler_w[env_ids, 1] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 1]).uniform_(
+        #     -ang_range, ang_range
+        # )
+        # self._desired_zyx_euler_w[env_ids, 2] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(
+        #     -ang_range, ang_range
+        # )
+        # desired_matrix = matrix_from_euler(self._desired_zyx_euler_w[env_ids], "ZYX")
+        # self._desired_quat_w[env_ids] = quat_from_matrix(desired_matrix)
+        self._desired_quat_w[env_ids] = samlpeUniformQuatwithTilt(torch.tensor(ang_range), len(env_ids)).to(self.device)
         # self._desired_quat_w[env_ids] = quat_from_euler_xyz(
         #     self._desired_zyx_euler_w[env_ids][:, 0],
         #     self._desired_zyx_euler_w[env_ids][:, 1],
@@ -920,27 +915,38 @@ class BeetleEnv(DirectRLEnv):
         default_root_state = self._robot.data.default_root_state[env_ids]
         default_root_state[:, :3] += self._terrain.env_origins[env_ids]
 
-        self._init_zyx_euler_w[env_ids, 0] = torch.empty_like(self._init_zyx_euler_w[env_ids, 0]).uniform_(
-            -math.pi, math.pi
-        )
-        self._init_zyx_euler_w[env_ids, 1] = torch.empty_like(self._init_zyx_euler_w[env_ids, 1]).uniform_(
-            -math.pi * 0.5, math.pi * 0.5
-        )
-        self._init_zyx_euler_w[env_ids, 2] = torch.empty_like(self._init_zyx_euler_w[env_ids, 2]).uniform_(
-            -math.pi * 0.5, math.pi * 0.5
-        )
-        init_matrix = matrix_from_euler(self._init_zyx_euler_w[env_ids], "ZYX")
+        # self._init_zyx_euler_w[env_ids, 0] = torch.empty_like(self._init_zyx_euler_w[env_ids, 0]).uniform_(
+        #     -math.pi * 0.5, math.pi * 0.5
+        # )
+        # self._init_zyx_euler_w[env_ids, 1] = torch.empty_like(self._init_zyx_euler_w[env_ids, 1]).uniform_(
+        #     -math.pi * 0.5, math.pi * 0.5
+        # )
+        # self._init_zyx_euler_w[env_ids, 2] = torch.empty_like(self._init_zyx_euler_w[env_ids, 2]).uniform_(
+        #     -math.pi, math.pi
+        # )
+        # init_matrix = matrix_from_euler(self._init_zyx_euler_w[env_ids], "ZYX")
         # init_quat = quat_from_matrix(init_matrix)
-        init_quat = quat_from_euler_xyz(
-            self._init_zyx_euler_w[env_ids][:, 1],
-            self._init_zyx_euler_w[env_ids][:, 2],
-            self._init_zyx_euler_w[env_ids][:, 0],
-        )
+        # init_quat = quat_from_euler_xyz(
+        #     self._init_zyx_euler_w[env_ids, 0],
+        #     self._init_zyx_euler_w[env_ids, 1],
+        #     self._init_zyx_euler_w[env_ids, 2],
+        # )
+        # init_rp = torch.empty_like(self._desired_zyx_euler_w[env_ids, :2]).uniform_(-math.pi * 0.5, math.pi * 0.5)
+        # init_rp = torch.zeros_like(self._desired_zyx_euler_w[env_ids, :2])
+        # init_rp[:, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(-math.pi * 0.5, math.pi * 0.5)
+        # init_rp[:, 1] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 1]).uniform_(-math.pi * 0.5, math.pi * 0.5)
+        # init_y = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(-math.pi, math.pi)
+        # init_quat = quat_from_euler_xyz(init_rp[:, 0], init_rp[:, 1], init_y)
+        init_quat = samlpeUniformQuatwithTilt(torch.tensor(math.pi * 0.5), len(env_ids)).to(self.device)
         default_root_state[:, 3:7] = init_quat
         # Linear velocity
-        default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.randomCfg.lin_vel
+        default_root_state[:, 7:10] = (
+            torch.zeros_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
+        )
         # Angular velocity
-        default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.randomCfg.ang_vel
+        default_root_state[:, 10:13] = (
+            torch.zeros_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
+        )
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
@@ -1013,8 +1019,10 @@ class BeetleEnv(DirectRLEnv):
             -math.pi / 2 * torch.ones(unit_dir.shape[0], device=self.device, dtype=unit_dir.dtype),
             torch.zeros(unit_dir.shape[0], device=self.device, dtype=unit_dir.dtype),
         )  # (N,4)
-        orientations = quat_mul(thrusts_quat, orientations)
-        orientations = quat_mul(orientations, x2z_quat)
+        # orientations = quat_mul(thrusts_quat, orientations)
+        # orientations = quat_mul(orientations, x2z_quat)
+
+        orientations = quat_mul(thrusts_quat, x2z_quat)
 
         scales = torch.ones_like(thrusts)
         scales[:, 0] = thrusts_mag * 0.5
