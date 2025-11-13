@@ -88,8 +88,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # last action (8)
     observation_space = 9 + 6 + 3 + 6 + 3 + gimbal_num + action_space
     thrust_to_torque_ratio = 0.0165
-    rotor_direction = [1, -1, 1, -1]  # beetle_hyper, joint urdf configuraion
-    # rotor_direction = [1, 1, 1, 1]
+    rotor_direction = [-1, 1, -1, 1]  # beetle_hyper, joint urdf configuraion
     contact_force_threshold = 0.1
 
     state_space = observation_space + action_space
@@ -125,7 +124,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             "gimbal": math.pi * 0.5,
         }
 
-    # reward scales
+    # # # # reward scales # # # # # # # #
     lin_vel_reward_scale = -0.02
     lin_vel_th = 3.0
     ang_vel_reward_scale = -0.01  # -0.01
@@ -146,6 +145,15 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     died_reward_scale = -1.0
     reach_goal_reward_timeout_scale = 0.1
     reach_goal_reward_scale = 0.1
+
+    # smoothing reward scales
+    gimbal_action_rate_reward_scale = -1.0e-3
+    thrust_action_rate_reward_scale = -1.0e-4
+    gimbal_acc_reward_scale = -2.5e-7
+    gimbal_limit_reward_scale = -0.01
+    gimbal_limit_scale = math.pi * 0.45
+    thrust_limit_reward_scale = -0.01
+    thrust_limit = 22.0
 
     # # # # Noise Configuration
     noiseCfg = {
@@ -301,6 +309,10 @@ class BeetleEnv(DirectRLEnv):
         self._position_error = torch.zeros(self.num_envs, 3, device=self.device)
         self._angle_error = torch.zeros(self.num_envs, 3, device=self.device)
 
+        self._gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
+        self._gimbal_vel = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
+        self._gimbal_vel_last = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
+
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
@@ -310,14 +322,15 @@ class BeetleEnv(DirectRLEnv):
                 "ang_vel_static",
                 "distance_to_goal",
                 "thrust_power",
-                # "goal_orientation",
-                # "quat_to_goal",
-                # "angular_to_goal",
-                # "angular_error_to_goal",
                 "angular_to_goal",
                 "died",
                 "reach_goal",
                 # "reach_goal_timeout",
+                "gimbal_action_rate",
+                "thrust_action_rate",
+                "gimbal_acc",
+                "gimbal_limit",
+                "thrust_limit",
             ]
         }
 
@@ -658,18 +671,10 @@ class BeetleEnv(DirectRLEnv):
         )
         reach_goal_reward = torch.zeros_like(reach_goal_reward_timeout)
         reach_goal_reward += reach_goal.to(torch.float32) * self.step_dt * 5.0
-        reach_goal_reward += (
-            - distance_to_goal / POS_TH * reach_goal.to(torch.float32) * self.step_dt
-        )
-        reach_goal_reward += (
-            - angular_to_goal / ANG_TH * reach_goal.to(torch.float32) * self.step_dt
-        )
-        reach_goal_reward += (
-            - lin_vel_norm / LIN_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
-        )
-        reach_goal_reward += (
-            - ang_vel_norm / ANG_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
-        )
+        reach_goal_reward += -distance_to_goal / POS_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -angular_to_goal / ANG_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -lin_vel_norm / LIN_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -ang_vel_norm / ANG_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
 
         # self._reach_goal_count = reach_goal.to(torch.float32) * (self._reach_goal_count + 1) * self.reset_time_outs.to(torch.float32)
         # self._reach_goal = reach_goal.to(torch.float32) * 1.0 * self.reset_time_outs.to(torch.float32)
@@ -706,12 +711,36 @@ class BeetleEnv(DirectRLEnv):
         # reach_goal_reward = torch.clamp(reach_goal_reward, min=0.0, max=40.0)
         total_reward += reach_goal_reward * self.cfg.reach_goal_reward_scale
         rewards["reach_goal"] = reach_goal_reward
-        # rewards["reach_goal_timeout"] = reach_goal_reward_timeout
-        # total_reward += reach_goal_reward_timeout * self.cfg.reach_goal_reward_timeout_scale
-        # reach_goal_precise_reward = self.reset_time_outs.to(torch.float32) * reach_goal_precise.to(torch.float32) * 30.0
-        # reach_goal_rough_reward = self.reset_time_outs.to(torch.float32) * reach_goal_rough.to(torch.float32) * 30.0
-        # total_reward += reach_goal_reward + reach_goal_precise_reward + reach_goal_rough_reward
-        # rewards["reach_goal"] = reach_goal_reward + reach_goal_precise_reward + reach_goal_rough_reward
+
+        # functional smoothness penalties
+
+        gimbal_action_rate = torch.sum(
+            torch.square(self._actions[:, : self.cfg.gimbal_num] - self._last_actions[:, : self.cfg.gimbal_num]), dim=1
+        )
+        rewards["gimbal_action_rate"] = gimbal_action_rate * self.cfg.gimbal_action_rate_reward_scale * self.step_dt
+
+        thrust_action_rate = torch.sum(
+            torch.square(self._actions[:, self.cfg.gimbal_num :] - self._last_actions[:, self.cfg.gimbal_num :]), dim=1
+        )
+        rewards["thrust_action_rate"] = thrust_action_rate * self.cfg.thrust_action_rate_reward_scale * self.step_dt
+
+        self._gimbal_vel = (self._robot.data.joint_vel[:, self._gimbal_ids[0]]).clone()
+        gimbal_acc = torch.sum(torch.square(self._gimbal_vel - self._gimbal_vel_last), dim=1) / self.step_dt
+        rewards["gimbal_acc"] = gimbal_acc * self.cfg.gimbal_acc_reward_scale * self.step_dt
+        self._gimbal_vel_last = self._gimbal_vel.clone()
+
+        self._gimbal_pos = (self._robot.data.joint_pos[:, self._gimbal_ids[0]]).clone()
+        gimbal_limit = -(self._gimbal_pos - (-self.cfg.gimbal_limit_scale)).clip(max=0.0)
+        gimbal_limit += (self._gimbal_pos - (self.cfg.gimbal_limit_scale)).clip(min=0.0)
+        gimbal_limit = torch.sum(gimbal_limit, dim=1)
+        rewards["gimbal_limit"] = gimbal_limit * self.cfg.gimbal_limit_reward_scale * self.step_dt
+
+        thrust_limit = (self._action_thrust_force - self.cfg.thrust_limit).clip(min=0.0)
+        thrust_limit = torch.sum(torch.square(thrust_limit), dim=1)
+        rewards["thrust_limit"] = thrust_limit * self.cfg.thrust_limit_reward_scale * self.step_dt
+
+        # total_reward += gimbal_action_rate * self.cfg.gimbal_action_rate_reward_scale * self.step_dt
+        # total_reward += thrust_action_rate * self.cfg.thrust_action_rate_reward_scale * self.step_dt
 
         # Logging
         for key, value in rewards.items():
