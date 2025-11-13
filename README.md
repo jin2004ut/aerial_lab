@@ -18,6 +18,7 @@
 ### Dependence
 1. [Isaac Sim](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html) `5.0.0`
 2. [Isaac Lab](https://github.com/isaac-sim/IsaacLab) `2.2.1`
+3. [onnxruntime]`onnxruntime-1.16.3-cp38`
 
 This project/repository serves as a template for building projects or extensions based on Isaac Lab.
 It allows you to develop in an isolated environment, outside of the core Isaac Lab repository.

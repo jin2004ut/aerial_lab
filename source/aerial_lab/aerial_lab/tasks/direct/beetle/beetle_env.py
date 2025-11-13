@@ -45,6 +45,7 @@ from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort
 
 from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.utility.noisemodel import NoiseModel  # isort: skip
+from aerial_lab.utility.math import samlpeUniformQuatwithTilt  # isort: skip
 
 
 class PoseTrackingEnvWindow(BaseEnvWindow):
@@ -127,7 +128,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     decimation = 4
     evaluate_mode = False
     episode_length_s = 15.0
-    max_curricular_steps = 8000.0
+    max_curricular_steps = 8000.0 * 24  # num_steps_per_env * max_iterations
     # - spaces definition
     rotor_num = 4
     gimbal_num = 4
@@ -141,8 +142,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # last action (8)
     observation_space = 9 + 6 + 3 + 6 + 3 + gimbal_num + action_space
     thrust_to_torque_ratio = 0.0165
-    rotor_direction = [1, -1, -1, 1]
-    # rotor_direction = [1, 1, 1, 1]
+    rotor_direction = [-1, 1, -1, 1]  # beetle_hyper, joint urdf configuraion
     contact_force_threshold = 0.1
 
     state_space = observation_space + action_space
@@ -151,6 +151,10 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     debug_vis = True
 
     ui_window_class_type = PoseTrackingEnvWindow
+
+    class randomization:
+        lin_vel = 1.0
+        ang_vel = 1.5
 
     class normalization:
         class obs_scales:
@@ -174,19 +178,36 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             "gimbal": math.pi * 0.5,
         }
 
-    # reward scales
+    # # # # reward scales # # # # # # # #
     lin_vel_reward_scale = -0.02
     lin_vel_th = 3.0
     ang_vel_reward_scale = -0.01  # -0.01
     ang_vel_th = 6.0
+    lin_vel_static_reward_scale = -0.02
+    ang_vel_static_reward_scale = -0.01
     # reach_lin_vel_reward_scale = -0.05
     # reach_ang_vel_reward_scale = -0.1
     thrust_power_reward_scale = -2.0e-6  # -1.0e-4
     # goal_orientation_reward_scale = -0.001
-    distance_to_goal_reward_scale = 5.0
+    distance_to_goal_reward_scale = -1.0
     # quat_error_to_goal_reward_scale = -6.0
     # angular_to_goal_reward_scale = 3.0
-    angular_error_to_goal_reward_scale = -5.0
+    # angular_error_to_goal_reward_scale = -5.0
+    # angular_error_to_goal_reward_scale = 3.0
+    angular_to_goal_reward_scale = 2.5
+
+    died_reward_scale = -1.0
+    reach_goal_reward_timeout_scale = 0.1
+    reach_goal_reward_scale = 0.1
+
+    # smoothing reward scales
+    gimbal_action_rate_reward_scale = -1.0e-3
+    thrust_action_rate_reward_scale = -1.0e-4
+    gimbal_acc_reward_scale = -2.5e-7
+    gimbal_limit_reward_scale = -0.01
+    gimbal_limit_scale = math.pi * 0.45
+    thrust_limit_reward_scale = -0.01
+    thrust_limit = 22.0
 
     # # # # Noise Configuration
     noiseCfg = {
@@ -318,6 +339,12 @@ class BeetleEnv(DirectRLEnv):
         # Basic cfgs
         self.obsScales = cfg.normalization.obs_scales
         self.noiseModel = NoiseModel(cfg.noiseCfg, device=self.device, num_envs=self.num_envs)
+        self.randomCfg = cfg.randomization
+
+        self._quat_sample_rate = 0.0
+        self._pos_sample_rate = 0.0
+        self._reach_goal_count = torch.zeros(self.num_envs, device=self.device)
+        self._reach_goal = torch.zeros(self.num_envs, device=self.device)
 
         # Total thrust and moment applied to the base of the quadcopter
         self._actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device)
@@ -332,22 +359,34 @@ class BeetleEnv(DirectRLEnv):
         self._desired_pos_w = torch.zeros(self.num_envs, 3, device=self.device)
         self._desired_zyx_euler_w = torch.zeros(self.num_envs, 3, device=self.device)
         self._desired_quat_w = torch.zeros(self.num_envs, 4, device=self.device)
+        self._init_pos_w = torch.zeros(self.num_envs, 3, device=self.device)
+        self._init_zyx_euler_w = torch.zeros(self.num_envs, 3, device=self.device)
+        self._init_quat_w = torch.zeros(self.num_envs, 4, device=self.device)
         self._position_error = torch.zeros(self.num_envs, 3, device=self.device)
         self._angle_error = torch.zeros(self.num_envs, 3, device=self.device)
+
+        self._gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
+        self._gimbal_vel = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
+        self._gimbal_vel_last = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
 
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
                 "lin_vel",
                 "ang_vel",
+                "lin_vel_static",
+                "ang_vel_static",
                 "distance_to_goal",
                 "thrust_power",
-                # "goal_orientation",
-                # "quat_to_goal",
-                # "angular_to_goal",
-                "angular_error_to_goal",
+                "angular_to_goal",
                 "died",
                 "reach_goal",
+                # "reach_goal_timeout",
+                "gimbal_action_rate",
+                "thrust_action_rate",
+                "gimbal_acc",
+                "gimbal_limit",
+                "thrust_limit",
             ]
         }
 
@@ -607,11 +646,19 @@ class BeetleEnv(DirectRLEnv):
         ang_vel_norm = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=1)
         ang_vel_over = torch.clamp(ang_vel_norm - self.cfg.ang_vel_th, min=0.0)
         ang_vel = torch.square(ang_vel_over)
+
+        lin_vel_static = torch.square(torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=1))
+        ang_vel_static = torch.square(torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=1))
         # distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal = torch.linalg.norm(self._position_error, dim=1)
+        distance_to_goal_mapped = torch.square(torch.tanh(distance_to_goal / 0.6))
+        # distance_to_goal_mapped = torch.tanh(distance_to_goal / 0.6)
+        # distance_to_goal_mapped = torch.square(distance_to_goal / 2.0)
         # distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
-        distance_to_goal_mapped = torch.exp(-2 * distance_to_goal)
+        # distance_to_goal_mapped = torch.exp(-2 * distance_to_goal)
         # distance_to_goal_weight = torch.exp(-torch.square(3.0 * distance_to_goal))
+        # distance_to_goal_weight = torch.exp(-5.0 * distance_to_goal)
+        distance_to_goal_weight = 1 - torch.tanh(distance_to_goal / 0.2)
         # reach_lin_vel = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=-1) * distance_to_goal_weight
         # reach_ang_vel = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=-1) * distance_to_goal_weight
         thrust_power = torch.sum(torch.square(self._action_thrust_force), dim=1)
@@ -625,14 +672,16 @@ class BeetleEnv(DirectRLEnv):
         # quat_to_goal = torch.linalg.norm(self._angle_error, dim=1) * distance_to_goal_weight
         # quat_to_goal = torch.sum(torch.square(self._angle_error), dim=1) * distance_to_goal_weight
         angular_to_goal = torch.linalg.norm(self._angle_error, dim=1)
-        # angular_to_goal_mapped = torch.tanh(angular_to_goal)
-        # angular_to_goal_mapped = 1 - torch.exp(-2 * angular_to_goal)
-        angular_to_goal_mapped = 1 - torch.exp(-angular_to_goal / 0.8)
+        angular_to_goal_mapped = (1 - torch.tanh(angular_to_goal)) * (0.1 + distance_to_goal_weight)
+        # angular_to_goal_mapped = torch.exp(-2 * angular_to_goal) * distance_to_sgoal_weight
+        # angular_to_goal_mapped = (1 - torch.exp(-angular_to_goal / 0.8))
         # angular_error_to_goal_mapped = 1 - torch.exp(-angular_to_goal)
 
         rewards = {
             "lin_vel": lin_vel * self.cfg.lin_vel_reward_scale * self.step_dt,
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
+            "lin_vel_static": lin_vel_static * self.cfg.lin_vel_static_reward_scale * self.step_dt,
+            "ang_vel_static": ang_vel_static * self.cfg.ang_vel_static_reward_scale * self.step_dt,
             "distance_to_goal": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
             # "reach_lin_vel": reach_lin_vel * self.cfg.reach_lin_vel_reward_scale * self.step_dt,
             # "reach_ang_vel": reach_ang_vel * self.cfg.reach_ang_vel_reward_scale * self.step_dt,
@@ -640,14 +689,15 @@ class BeetleEnv(DirectRLEnv):
             # "goal_orientation": goal_orientation * self.cfg.goal_orientation_reward_scale * self.step_dt,
             # "quat_to_goal": quat_to_goal * self.cfg.quat_error_to_goal_reward_scale * self.step_dt,
             # "angular_to_goal": angular_to_goal_mapped * self.cfg.angular_to_goal_reward_scale * self.step_dt,
-            "angular_error_to_goal": (
-                angular_to_goal_mapped * self.cfg.angular_error_to_goal_reward_scale * self.step_dt
-            ),
+            # "angular_error_to_goal": (
+            #     angular_to_goal_mapped * self.cfg.angular_error_to_goal_reward_scale * self.step_dt
+            # ),
+            "angular_to_goal": angular_to_goal_mapped * self.cfg.angular_to_goal_reward_scale * self.step_dt,
         }
         total_reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
 
         # Early termination penalty
-        die_reward = self.reset_terminated.to(torch.float32) * -30.0
+        die_reward = self.reset_terminated.to(torch.float32) * self.cfg.died_reward_scale * self.max_episode_length_s
         total_reward += die_reward
         rewards["died"] = die_reward
 
@@ -680,38 +730,83 @@ class BeetleEnv(DirectRLEnv):
             torch.logical_and(ang_vel_norm < ANG_VEL_TH, lin_vel_norm < LIN_VEL_TH),
             torch.logical_and(angular_to_goal < ANG_TH, distance_to_goal < POS_TH),
         )
-        reach_goal_reward = self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * 10.0
-        reach_goal_reward = (
-            torch.exp((POS_TH - distance_to_goal) / POS_TH)
-            * self.reset_time_outs.to(torch.float32)
-            * reach_goal.to(torch.float32)
-            * 20.0
+        self._reach_goal = reach_goal.to(torch.float32) * self.reset_time_outs.to(torch.float32)
+        self._reach_goal_count += self._reach_goal
+        reach_goal_reward_timeout = (
+            self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * self.max_episode_length_s
         )
-        reach_goal_reward = (
-            torch.exp((ANG_TH - angular_to_goal) / ANG_TH)
-            * self.reset_time_outs.to(torch.float32)
-            * reach_goal.to(torch.float32)
-            * 20.0
-        )
-        reach_goal_reward = (
-            torch.exp((LIN_VEL_TH - lin_vel_norm) / LIN_VEL_TH)
-            * self.reset_time_outs.to(torch.float32)
-            * reach_goal.to(torch.float32)
-            * 20.0
-        )
-        reach_goal_reward = (
-            torch.exp((ANG_VEL_TH - ang_vel_norm) / ANG_VEL_TH)
-            * self.reset_time_outs.to(torch.float32)
-            * reach_goal.to(torch.float32)
-            * 20.0
-        )
-        reach_goal_reward = torch.clamp(reach_goal_reward, min=0.0, max=40.0)
-        total_reward += reach_goal_reward
+        reach_goal_reward = torch.zeros_like(reach_goal_reward_timeout)
+        reach_goal_reward += reach_goal.to(torch.float32) * self.step_dt * 5.0
+        reach_goal_reward += -distance_to_goal / POS_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -angular_to_goal / ANG_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -lin_vel_norm / LIN_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -ang_vel_norm / ANG_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
+
+        # self._reach_goal_count = reach_goal.to(torch.float32) * (self._reach_goal_count + 1) * self.reset_time_outs.to(torch.float32)
+        # self._reach_goal = reach_goal.to(torch.float32) * 1.0 * self.reset_time_outs.to(torch.float32)
+        # reach_goal_reward = (
+        #     self.reset_time_outs.to(torch.float32)
+        #     * reach_goal.to(torch.float32)
+        #     * self.cfg.reach_goal_reward_scale
+        #     * self.max_episode_length_s
+        # )
+        # reach_goal_reward += (
+        #     torch.exp((POS_TH - distance_to_goal) / POS_TH)
+        #     * self.reset_time_outs.to(torch.float32)
+        #     * reach_goal.to(torch.float32)
+        #     * self.max_episode_length_s
+        # )
+        # reach_goal_reward += (
+        #     torch.exp((ANG_TH - angular_to_goal) / ANG_TH)
+        #     * self.reset_time_outs.to(torch.float32)
+        #     * reach_goal.to(torch.float32)
+        #     * self.max_episode_length_s
+        # )
+        # reach_goal_reward += (
+        #     torch.exp((LIN_VEL_TH - lin_vel_norm) / LIN_VEL_TH)
+        #     * self.reset_time_outs.to(torch.float32)
+        #     * reach_goal.to(torch.float32)
+        #     * self.max_episode_length_s
+        # )
+        # reach_goal_reward += (
+        #     torch.exp((ANG_VEL_TH - ang_vel_norm) / ANG_VEL_TH)
+        #     * self.reset_time_outs.to(torch.float32)
+        #     * reach_goal.to(torch.float32)
+        #     * self.max_episode_length_s
+        # )
+        # reach_goal_reward = torch.clamp(reach_goal_reward, min=0.0, max=40.0)
+        total_reward += reach_goal_reward * self.cfg.reach_goal_reward_scale
         rewards["reach_goal"] = reach_goal_reward
-        # reach_goal_precise_reward = self.reset_time_outs.to(torch.float32) * reach_goal_precise.to(torch.float32) * 30.0
-        # reach_goal_rough_reward = self.reset_time_outs.to(torch.float32) * reach_goal_rough.to(torch.float32) * 30.0
-        # total_reward += reach_goal_reward + reach_goal_precise_reward + reach_goal_rough_reward
-        # rewards["reach_goal"] = reach_goal_reward + reach_goal_precise_reward + reach_goal_rough_reward
+
+        # functional smoothness penalties
+
+        gimbal_action_rate = torch.sum(
+            torch.square(self._actions[:, : self.cfg.gimbal_num] - self._last_actions[:, : self.cfg.gimbal_num]), dim=1
+        )
+        rewards["gimbal_action_rate"] = gimbal_action_rate * self.cfg.gimbal_action_rate_reward_scale * self.step_dt
+
+        thrust_action_rate = torch.sum(
+            torch.square(self._actions[:, self.cfg.gimbal_num :] - self._last_actions[:, self.cfg.gimbal_num :]), dim=1
+        )
+        rewards["thrust_action_rate"] = thrust_action_rate * self.cfg.thrust_action_rate_reward_scale * self.step_dt
+
+        self._gimbal_vel = (self._robot.data.joint_vel[:, self._gimbal_ids[0]]).clone()
+        gimbal_acc = torch.sum(torch.square(self._gimbal_vel - self._gimbal_vel_last), dim=1) / self.step_dt
+        rewards["gimbal_acc"] = gimbal_acc * self.cfg.gimbal_acc_reward_scale * self.step_dt
+        self._gimbal_vel_last = self._gimbal_vel.clone()
+
+        self._gimbal_pos = (self._robot.data.joint_pos[:, self._gimbal_ids[0]]).clone()
+        gimbal_limit = -(self._gimbal_pos - (-self.cfg.gimbal_limit_scale)).clip(max=0.0)
+        gimbal_limit += (self._gimbal_pos - (self.cfg.gimbal_limit_scale)).clip(min=0.0)
+        gimbal_limit = torch.sum(gimbal_limit, dim=1)
+        rewards["gimbal_limit"] = gimbal_limit * self.cfg.gimbal_limit_reward_scale * self.step_dt
+
+        thrust_limit = (self._action_thrust_force - self.cfg.thrust_limit).clip(min=0.0)
+        thrust_limit = torch.sum(torch.square(thrust_limit), dim=1)
+        rewards["thrust_limit"] = thrust_limit * self.cfg.thrust_limit_reward_scale * self.step_dt
+
+        # total_reward += gimbal_action_rate * self.cfg.gimbal_action_rate_reward_scale * self.step_dt
+        # total_reward += thrust_action_rate * self.cfg.thrust_action_rate_reward_scale * self.step_dt
 
         # Logging
         for key, value in rewards.items():
@@ -734,18 +829,42 @@ class BeetleEnv(DirectRLEnv):
         # print(torch.linalg.norm(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1), dim=-1))  # die if in contact with the ground
         # print(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
         # print(self._contact_sensor.data.net_forces_w.squeeze(1))
-        died = torch.zeros_like(time_out, dtype=torch.bool)
+        # # # DEBUG
+        # died = torch.zeros_like(time_out, dtype=torch.bool)
         return died, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
         if env_ids is None:
             env_ids = self._robot._ALL_INDICES
 
+        quat_sample_rate = (
+            (self.common_step_counter + 100 * 24) / self.cfg.max_curricular_steps * 12
+        )  # start from 0.3, reach 0.8
+        pos_sample_rate = (
+            (self.common_step_counter + 100 * 24) / self.cfg.max_curricular_steps * 12
+        )  # start from 0.1, reach 0.6
+        quat_sample_rate = max(quat_sample_rate, 0.0)
+        pos_sample_rate = max(pos_sample_rate, 0.0)
+
+        if self.cfg.evaluate_mode:
+            quat_sample_rate = 1.0
+            pos_sample_rate = 1.0
+
+        quat_sample_rate = min(quat_sample_rate, 1.0)
+        pos_sample_rate = min(pos_sample_rate, 1.0)
+        # quat_sample_rate = 1.0
+        # pos_sample_rate = 1.0
+        self._quat_sample_rate = quat_sample_rate
+        self._pos_sample_rate = pos_sample_rate
+
         # Logging
-        final_distance_to_goal = torch.linalg.norm(
-            self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
-        ).mean()
-        final_angle_error = torch.linalg.norm(self._angle_error[env_ids], dim=1).mean()
+        # final_distance_to_goal = torch.linalg.norm(
+        #     self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
+        # ).mean()
+        # final_angle_error = torch.linalg.norm(self._angle_error[env_ids], dim=1).mean()
+        final_distance_to_goal = torch.mean(torch.linalg.norm(self._position_error[env_ids], dim=1))
+        final_angle_error = torch.mean(torch.linalg.norm(self._angle_error[env_ids], dim=1))
+
         thrust_average = torch.mean(self._action_thrust_force, dim=1).mean()
 
         goal_lin_vel_avg = torch.mean(torch.abs(self._robot.data.root_lin_vel_b[env_ids]), dim=0)
@@ -771,7 +890,10 @@ class BeetleEnv(DirectRLEnv):
         extras["Metrics/avg_goal_ang_vel_x"] = goal_ang_vel_avg[0].item()
         extras["Metrics/avg_goal_ang_vel_y"] = goal_ang_vel_avg[1].item()
         extras["Metrics/avg_goal_ang_vel_z"] = goal_ang_vel_avg[2].item()
-        extras["Metrics/sample_rate"] = self.common_step_counter / self.cfg.max_curricular_steps
+        extras["Metrics/quat_sample_rate"] = self._quat_sample_rate
+        extras["Metrics/pos_sample_rate"] = self._pos_sample_rate
+        extras["Metrics/reach_goal_reset"] = torch.mean(self._reach_goal).item()
+        extras["Metrics/reach_goal_count"] = torch.mean(self._reach_goal_count).item()
         self.extras["log"].update(extras)
 
         self._robot.reset(env_ids)
@@ -838,33 +960,37 @@ class BeetleEnv(DirectRLEnv):
         #     ).uniform_(0.5, 2.5)
         # quat_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.3, reach 0.8
         # pos_sample_rate = self._sim_step_counter / self.max_episode_length * 2  # start from 0.1, reach 0.6
-        # quat_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.3, reach 0.8
-        # pos_sample_rate = self.common_step_counter / self.cfg.max_curricular_steps * 2  # start from 0.1, reach 0.6
-        quat_sample_rate = self.common_step_counter / 8000.0 * 2  # start from 0.3, reach 0.8
-        pos_sample_rate = self.common_step_counter / 8000.0 * 2  # start from 0.1, reach 0.6
-        quat_sample_rate = max(quat_sample_rate - 0.20, 0.0)
-        pos_sample_rate = max(pos_sample_rate - 0.10, 0.0)
 
-        if self.cfg.evaluate_mode:
-            quat_sample_rate = 1.0
-            pos_sample_rate = 1.0
+        # quat_sample_rate = (self.common_step_counter - 50) / self.cfg.max_curricular_steps * 4  # start from 0.3, reach 0.8
+        # pos_sample_rate = (self.common_step_counter - 100) / self.cfg.max_curricular_steps * 4  # start from 0.1, reach 0.6
+        # quat_sample_rate = max(quat_sample_rate , 0.0)
+        # pos_sample_rate = max(pos_sample_rate , 0.0)
 
-        ang_range = min(math.pi * 0.5 * quat_sample_rate, math.pi * 0.45)
-        pos_range = min(5.0 * pos_sample_rate, 5.0)
-        pos_range_z = min(1.0 * pos_sample_rate, 1.0)
+        # if self.cfg.evaluate_mode:
+        #     quat_sample_rate = 1.0
+        #     pos_sample_rate = 1.0
+
+        # quat_sample_rate = min(quat_sample_rate, 1.0)
+        # pos_sample_rate = min(pos_sample_rate, 1.0)
+        # self._quat_sample_rate = quat_sample_rate
+        # self._pos_sample_rate = pos_sample_rate
+        ang_range = math.pi * 0.45 * quat_sample_rate
+        pos_range = 5.0 * pos_sample_rate
+        pos_range_z = 1.0 * pos_sample_rate
 
         # Euler ZYX[a,b,c] = RPY[c,b,a]
-        self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
-            -math.pi, math.pi
-        )
-        self._desired_zyx_euler_w[env_ids, 1] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 1]).uniform_(
-            -ang_range, ang_range
-        )
-        self._desired_zyx_euler_w[env_ids, 2] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(
-            -ang_range, ang_range
-        )
-        desired_matrix = matrix_from_euler(self._desired_zyx_euler_w[env_ids], "ZYX")
-        self._desired_quat_w[env_ids] = quat_from_matrix(desired_matrix)
+        # self._desired_zyx_euler_w[env_ids, 0] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 0]).uniform_(
+        #     -math.pi, math.pi
+        # )
+        # self._desired_zyx_euler_w[env_ids, 1] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 1]).uniform_(
+        #     -ang_range, ang_range
+        # )
+        # self._desired_zyx_euler_w[env_ids, 2] = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(
+        #     -ang_range, ang_range
+        # )
+        # desired_matrix = matrix_from_euler(self._desired_zyx_euler_w[env_ids], "ZYX")
+        # self._desired_quat_w[env_ids] = quat_from_matrix(desired_matrix)
+        self._desired_quat_w[env_ids] = samlpeUniformQuatwithTilt(torch.tensor(ang_range), len(env_ids)).to(self.device)
         # self._desired_quat_w[env_ids] = quat_from_euler_xyz(
         #     self._desired_zyx_euler_w[env_ids][:, 0],
         #     self._desired_zyx_euler_w[env_ids][:, 1],
@@ -884,18 +1010,16 @@ class BeetleEnv(DirectRLEnv):
         default_root_state = self._robot.data.default_root_state[env_ids]
         default_root_state[:, :3] += self._terrain.env_origins[env_ids]
 
-        default_root_state[:, 2] = 0.05
-        # init_rp = torch.empty_like(self._desired_zyx_euler_w[env_ids, :2]).uniform_(-math.pi * 0.5, math.pi * 0.5)
-        # init_y = torch.empty_like(self._desired_zyx_euler_w[env_ids, 2]).uniform_(-math.pi, math.pi)
-        # init_quat = quat_from_euler_xyz(
-        #     init_rp[:, 0],
-        #     init_rp[:, 1],
-        #     init_y,
-        # )
-        # default_root_state[:, 3:7] = init_quat
-        # default_root_state[:, 7:10] = torch.randn_like(default_root_state[:, 7:10]) * self.obsScales.lin_vel
-        # default_root_state[:, 10:13] = torch.randn_like(default_root_state[:, 10:13]) * self.obsScales.ang_vel
-        print(f"Reset Env {env_ids} to pos: ", default_root_state)
+        init_quat = samlpeUniformQuatwithTilt(torch.tensor(math.pi * 0.5), len(env_ids)).to(self.device)
+        default_root_state[:, 3:7] = init_quat
+        # Linear velocity
+        default_root_state[:, 7:10] = (
+            torch.zeros_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
+        )
+        # Angular velocity
+        default_root_state[:, 10:13] = (
+            torch.zeros_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
+        )
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
@@ -976,8 +1100,10 @@ class BeetleEnv(DirectRLEnv):
             -math.pi / 2 * torch.ones(unit_dir.shape[0], device=self.device, dtype=unit_dir.dtype),
             torch.zeros(unit_dir.shape[0], device=self.device, dtype=unit_dir.dtype),
         )  # (N,4)
-        orientations = quat_mul(thrusts_quat, orientations)
-        orientations = quat_mul(orientations, x2z_quat)
+        # orientations = quat_mul(thrusts_quat, orientations)
+        # orientations = quat_mul(orientations, x2z_quat)
+
+        orientations = quat_mul(thrusts_quat, x2z_quat)
 
         scales = torch.ones_like(thrusts)
         scales[:, 0] = thrusts_mag * 0.5
