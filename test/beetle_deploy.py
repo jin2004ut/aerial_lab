@@ -54,25 +54,18 @@ def quat_apply_inv(q: np.ndarray, v: np.ndarray) -> np.ndarray:
     return v_rotated
 
 
-def quat_inv(q: np.ndarray) -> np.ndarray:
-    """Return the inverse of quaternion q."""
-    q_inv = tf.quaternion_inverse(q)
-    return q_inv
-
-
 def axis_angle_from_quat(quat: np.ndarray, eps: float = 1.0e-6) -> np.ndarray:
     """Convert quaternion to axis-angle representation"""
-    # Modified to take in quat as [q_w, q_x, q_y, q_z]
+    # Modified to take in quat as [q_x, q_y, q_z，q_w,]
     # Quaternion is [q_w, q_x, q_y, q_z] = [cos(theta/2), n_x * sin(theta/2), n_y * sin(theta/2), n_z * sin(theta/2)]
     # Axis-angle is [a_x, a_y, a_z] = [theta * n_x, theta * n_y, theta * n_z]
 
     # Ensure quaternion has positive w (choose shorter rotation path)
-    if quat[0] < 0.0:
-        quat = -quat
-
+    if quat[3] < 0.0:
+        quat = [-quat[0], -quat[1], -quat[2], -quat[3]]
     # Calculate magnitude of imaginary part and half angle
-    mag = np.linalg.norm(quat[1:])  # norm of [x, y, z]
-    half_angle = np.arctan2(mag, quat[0])
+    mag = np.linalg.norm(quat[:3])  # norm of [x, y, z]
+    half_angle = np.arctan2(mag, quat[3])
     angle = 2.0 * half_angle
 
     # Check whether to apply Taylor approximation
@@ -83,14 +76,14 @@ def axis_angle_from_quat(quat: np.ndarray, eps: float = 1.0e-6) -> np.ndarray:
         sin_half_angles_over_angles = 0.5 - angle * angle / 48
 
     # Return axis-angle: [x, y, z] / (sin(half_angle) / angle)
-    return quat[1:4] / sin_half_angles_over_angles
+    return quat[0:3] / sin_half_angles_over_angles
 
 
 def subtract_frame_transforms(
     t01: np.ndarray, q01: np.ndarray, t02: np.ndarray, q02: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
     # compute orientation
-    q10 = quat_inv(q01)
+    q10 = tf.quaternion_inverse(q01)
     if q02 is not None:
         q12 = tf.quaternion_multiply(q10, q02)
     else:
@@ -112,7 +105,7 @@ def compute_pose_error(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute the position and orientation error between source and target frames"""
     # For unit quaternions, the inverse is the conjugate
-    # q_inv = conj(q) = [w, -x, -y, -z]
+    # q_inv = conj(q) = [-x, -y, -z, w]
     source_quat_inv = tf.quaternion_conjugate(q01)
 
     # Quaternion error: q_error = q_target * q_current_inv
@@ -157,7 +150,7 @@ class PolicyDeployer:
             onnx_path: Path to ONNX model file
             control_freq: Control loop frequency in Hz
         """
-        rospy.init_node("beetle_policy_node", anonymous=True)
+        rospy.init_node("beetle_policy", anonymous=False)
 
         # Control parameters
         self.control_dt = 1.0 / control_freq
@@ -196,7 +189,7 @@ class PolicyDeployer:
 
         self.desired_pose = PoseStamped(
             header=rospy.Header(frame_id="world"),
-            pose=Pose(position=Point(x=0.0, y=0.0, z=1.2), orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)),
+            pose=Pose(position=Point(x=0.0, y=0.0, z=0.6), orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)),
         )
 
         self.gimbal_pos = np.zeros(4, dtype=np.float32)
@@ -214,6 +207,17 @@ class PolicyDeployer:
         self.last_action = np.zeros(self.action_size, dtype=np.float32)
         rospy.loginfo(f"Observation size: {self.obs_size}, Action size: {self.action_size}")
 
+        self.last_time = time.perf_counter_ns()
+        self.periodT = 2.0
+        self.periodCnt = 0
+        self.MaxPeriod = 0.0
+        self.MinPeriod = 1000000.0
+        self.period_queue = deque(maxlen=500)
+        self.MaxForwardTime = 0.0
+        self.MeanForwardTime = 0.0
+        self.MinForwardTime = 1000000.0
+        self.ForwardTime_queue = deque(maxlen=500)
+
         # ROS subscribers - they run in ROS's own thread pool, no need for separate threads
         self.imu_sub = rospy.Subscriber("/gimbalrotor/imu", Imu, self._imu_callback, queue_size=1)
 
@@ -230,9 +234,7 @@ class PolicyDeployer:
         # )
         self.gimbal_sub = rospy.Subscriber("/gimbalrotor/joint_states", JointState, self._gimbal_callback, queue_size=1)
 
-        self.goal_pose_sub = rospy.Subscriber(
-            "/gimbalrotor/goal_pose", PoseStamped, self._goal_pose_callback, queue_size=1
-        )
+        self.goal_pose_sub = rospy.Subscriber("/desired_3D_pose", PoseStamped, self._goal_pose_callback, queue_size=1)
 
         # ROS publishers
         self.thrust_pub = rospy.Publisher("/gimbalrotor/four_axes/command", FourAxisCommand, queue_size=1)
@@ -316,13 +318,6 @@ class PolicyDeployer:
             obs: (obs_size,) numpy array
         """
         with self.data_lock:
-            if self.imu_catch is False:
-                print("Warning: No IMU data received yet, useing zeros")
-                return None
-            else:
-                obs_project_gravity_vec = np.array(
-                    [self.imu_data.acc[0], self.imu_data.acc[1], self.imu_data.acc[2]]
-                ).astype(np.float32)
             if self.odom_catch is False:
                 print("Warning: No Odometry data received yet, using zeros")
                 return None
@@ -352,6 +347,13 @@ class PolicyDeployer:
                     self.odom_data.twist.twist.angular.z,
                 ]).astype(np.float32)
                 obs_ang_vel_b = quat_apply_inv(obs_quat, obs_ang_vel_b)  # Should rotate by quaternion, not position
+            if self.imu_catch is False:
+                print("Warning: No IMU data received yet, using zeros")
+                return None
+            else:
+                rotation = tf.quaternion_matrix(self.body_quat).astype(np.float32)
+                rotation = rotation[:3, :3]
+                obs_project_gravity_vec = rotation @ np.array([0.0, 0.0, -1.0]).astype(np.float32)
             if self.gimbal_catch is False:
                 print("Warning: No Gimbal data received yet, using zeros")
                 return None
@@ -373,7 +375,7 @@ class PolicyDeployer:
             #     ),
             #     dim=-1,
             # )
-            goal_pos_b, angular_error = compute_pose_error(
+            _, angular_error = compute_pose_error(
                 t01=obs_pos,
                 q01=obs_quat,
                 t02=np.array([
@@ -389,7 +391,23 @@ class PolicyDeployer:
                 ]).astype(np.float32),
             )
 
-            root_rot_vec = tf.quaternion_matrix(obs_quat)[:3, :2]  # Fixed: should be [:3, :2] for 3x2 = 6 elements
+            goal_pos_b, _ = subtract_frame_transforms(
+                t01=obs_pos,
+                q01=obs_quat,
+                t02=np.array([
+                    self.desired_pose.pose.position.x,
+                    self.desired_pose.pose.position.y,
+                    self.desired_pose.pose.position.z,
+                ]).astype(np.float32),
+                q02=np.array([
+                    self.desired_pose.pose.orientation.x,
+                    self.desired_pose.pose.orientation.y,
+                    self.desired_pose.pose.orientation.z,
+                    self.desired_pose.pose.orientation.w,
+                ]).astype(np.float32),
+            )
+
+            root_rot_vec = tf.quaternion_matrix(obs_quat)[:2, :3]  # Fixed: should be [:3, :2] for 3x2 = 6 elements
             goal_rot_vec = tf.quaternion_matrix(
                 np.array([
                     self.desired_pose.pose.orientation.x,
@@ -398,7 +416,7 @@ class PolicyDeployer:
                     self.desired_pose.pose.orientation.w,
                 ]).astype(np.float32)
             )[
-                :3, :2
+                :2, :3
             ]  # Fixed: should be [:3, :2]
 
             obs = np.concatenate([
@@ -459,6 +477,8 @@ class PolicyDeployer:
         cmd_msg.angles = [0.0, 0.0, 0.0]  # [roll, pitch, yaw] angles
         cmd_msg.base_thrust = target_thrust.tolist()  # base thrust
         self.thrust_pub.publish(cmd_msg)
+        thrust_str = ", ".join([f"{t:07.4f}" for t in target_thrust])
+        print(f"Published thrust: [{thrust_str}]")
 
     def _publish_gimbal(self, target_pos: np.ndarray):
         """
@@ -470,13 +490,15 @@ class PolicyDeployer:
         gimbal_msg = JointState()
         gimbal_msg.header.stamp = rospy.Time.now()
         for i in range(len(target_pos)):
-            gimbal_msg.name.append(f"gimbal_joint_{i+1}")
+            gimbal_msg.name.append(self.gimbal_data.name[i])
             gimbal_msg.position.append(target_pos[i] * self.scales.gimbal_action_scale + self.gimbal_default_pos[i])
         self.gimbal_pub.publish(gimbal_msg)
+        gimbal_str = ", ".join([f"{p:07.4f}" for p in gimbal_msg.position])
+        print(f"Published gimbal: [{gimbal_str}]")
 
     def _control_loop_callback(self, event):
         """Control loop timer callback - runs at specified frequency."""
-        start = rospy.Time.now()
+        start = time.perf_counter_ns()
 
         obs = self._build_observation()
 
@@ -486,9 +508,16 @@ class PolicyDeployer:
             return
 
         action = self._infer_action(obs)
-
+        # print("Inferred action:", action)
         target_gimbal = action[:4]
         target_thrust = action[4:]
+
+        forward_time = time.perf_counter_ns() - start
+        self.ForwardTime_queue.append(forward_time)
+        if forward_time > self.MaxForwardTime:
+            self.MaxForwardTime = forward_time
+        if forward_time < self.MinForwardTime:
+            self.MinForwardTime = forward_time
 
         self._publish_thrust(target_thrust)
         self._publish_gimbal(target_gimbal)
@@ -497,7 +526,37 @@ class PolicyDeployer:
             self.last_action = action
 
         # Log performance metrics
-        elapsed = (rospy.Time.now() - start).to_sec()
+        elapsed = (time.perf_counter_ns() - start) / 1e9
+        period = (time.perf_counter_ns() - self.last_time) / 1e9
+        if period > self.MaxPeriod:
+            self.MaxPeriod = period
+        if period < self.MinPeriod:
+            self.MinPeriod = period
+        self.last_time = start
+        self.period_queue.append(period)
+        self.periodCnt += 1
+        if self.periodCnt >= self.control_freq * self.periodT:
+            mean_period = np.mean(self.period_queue)
+            mean_forward = np.mean(self.ForwardTime_queue)
+            self.MeanForwardTime = mean_forward
+            print(
+                f"\n{'='*60}\n"
+                f"[{self.periodT:.2f}s] Control Loop - \n"
+                f"Mean Period: {mean_period * 1000:.3f}ms, \n"
+                f"Max Period: {self.MaxPeriod * 1000:.3f}ms, \n"
+                f"Min Period: {self.MinPeriod * 1000:.3f}ms, \n"
+                f"Mean Forward Time: {mean_forward / 1e6:.3f}ms, \n"
+                f"Max Forward Time: {self.MaxForwardTime / 1e6:.3f}ms, \n"
+                f"Min Forward Time: {self.MinForwardTime / 1e6:.3f}ms \n"
+                f"{'='*60}\n"
+            )
+            self.period_queue.clear()
+            self.ForwardTime_queue.clear()
+            self.periodCnt = 0
+            self.MaxPeriod = 0.0
+            self.MinPeriod = 1000000.0
+            self.MaxForwardTime = 0.0
+            self.MinForwardTime = 1000000
         if elapsed > self.control_dt:
             rospy.logwarn_throttle(1.0, f"Control loop overrun: {elapsed * 1000:.1f}ms")
 
@@ -510,7 +569,8 @@ def main():
     """Main entry point."""
     # Get configuration from ROS parameters
     # onnx_path = rospy.get_param("~onnx_path", rel_path("models", "policy.onnx"))
-    onnx_path = rel_path("policy", "policy.onnx")
+    onnx_path = rel_path("policy", "2025-11-13_15-45-08policy.onnx")
+
     control_freq = 50.0
 
     try:
