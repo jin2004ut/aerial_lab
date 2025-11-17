@@ -3,12 +3,30 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import isaaclab.envs.mdp as mdp
 from isaaclab.assets import ArticulationCfg
 from isaaclab.envs import DirectRLEnvCfg
+from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 from isaaclab_assets.robots.cartpole import CARTPOLE_CFG
+
+
+@configclass
+class EventCfg:
+    """Configuration for randomization."""
+
+    scale_base_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="pole"),
+            "mass_distribution_params": (2.0, 0.1),
+            "operation": "scale",
+        },
+    )
 
 
 @configclass
@@ -30,6 +48,7 @@ class AerialLabEnvCfg(DirectRLEnvCfg):
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
+    events: EventCfg = EventCfg()
     # custom parameters/scales
     # - controllable joint
     cart_dof_name = "slider_to_cart"
