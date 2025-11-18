@@ -27,6 +27,28 @@ def rotation_distance(object_rot, target_rot):
     return 2.0 * torch.asin(torch.clamp(torch.norm(quat_diff[:, 1:4], p=2, dim=-1), max=1.0))  # changed quat convention
 
 
+@torch.jit.script
+def so3_log_rotation(object_rot, target_rot):
+    # Orientation alignment for the cube in hand and goal cube
+    object_R = matrix_from_quat(object_rot)
+    target_R = matrix_from_quat(target_rot)
+    R_diff = torch.matmul(target_R.transpose(-2, -1), object_R)
+    cos_theta = (torch.trace(R_diff) - 3) / 2
+    cos_theta = torch.clamp(cos_theta, -1.0, 1.0)
+    theta = torch.acos(cos_theta)
+
+    if theta < 1e-6:
+        # small angle: use approximation
+        return 0.5 * torch.tensor(
+            [R_diff[2, 1] - R_diff[1, 2], R_diff[0, 2] - R_diff[2, 0], R_diff[1, 0] - R_diff[0, 1]]
+        )
+
+    # normal case
+    return (theta / (2 * torch.sin(theta))) * torch.tensor(
+        [R_diff[2, 1] - R_diff[1, 2], R_diff[0, 2] - R_diff[2, 0], R_diff[1, 0] - R_diff[0, 1]]
+    )
+
+
 if __name__ == "__main__":
     quat_1 = normalize(torch.randn(2, 4))
     quat_2 = normalize(torch.randn(2, 4))

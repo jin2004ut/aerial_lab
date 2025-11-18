@@ -214,27 +214,27 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     # # # # Noise Configuration
     noiseCfg = {
-        # "root_pos": {
-        #     "type": "uniform",
-        #     "dim": 3,
-        #     "mean": 0.0,
-        #     "std": 0.02,
-        #     "clip": 0.3,
-        # },
-        # "lin_vel": {
-        #     "type": "uniform",
-        #     "dim": 3,
-        #     "mean": 0.0,
-        #     "std": 0.1,
-        #     "clip": 0.3,
-        # },
-        # "ang_vel": {
-        #     "type": "uniform",
-        #     "dim": 3,
-        #     "mean": 0.0,
-        #     "std": 0.3,
-        #     "clip": 0.3,
-        # },
+        "root_pos": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.02,
+            "clip": 0.3,
+        },
+        "lin_vel": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.1,
+            "clip": 0.3,
+        },
+        "ang_vel": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.3,
+            "clip": 0.3,
+        },
         # "gravity": {
         #     "type": "uniform",
         #     "dim": 3,
@@ -242,13 +242,13 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         #     "std": 0.05,
         #     "clip": 0.1,
         # },
-        # "dof_pos": {
-        #     "type": "uniform",
-        #     "dim": gimbal_num,
-        #     "mean": 0.0,
-        #     "std": 0.02,
-        #     "clip": 0.1,
-        # },
+        "dof_pos": {
+            "type": "uniform",
+            "dim": gimbal_num,
+            "mean": 0.0,
+            "std": 0.02,
+            "clip": 0.1,
+        },
     }
 
     rotorCfg = {
@@ -331,7 +331,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         debug_vis=True,
     )
 
-    events: EventCfg = EventCfg()
+    # events: EventCfg = EventCfg()
 
 
 class BeetleEnv(DirectRLEnv):
@@ -532,12 +532,13 @@ class BeetleEnv(DirectRLEnv):
         #################################################
 
     def _apply_action(self) -> None:
-        self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
-        self._robot.set_external_force_and_torque(
-            forces=self._target_thrust_force,
-            torques=self._target_rotor_torque,
-            body_ids=self._thrust_ids[0],
-        )
+        if self.common_step_counter > 50:
+            self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
+            self._robot.set_external_force_and_torque(
+                forces=self._target_thrust_force,
+                torques=self._target_rotor_torque,
+                body_ids=self._thrust_ids[0],
+            )
 
         # env_ids = 1
         # if self.common_step_counter % 200 == 0:
@@ -599,7 +600,7 @@ class BeetleEnv(DirectRLEnv):
             obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
         if "dof_pos" in self.noiseModel.params:
             obs[:, 18 : 18 + self.cfg.gimbal_num] = self.noiseModel.apply(
-                obs[:, :, 18 : 18 + self.cfg.gimbal_num], "dof_pos"
+                obs[:, 18 : 18 + self.cfg.gimbal_num], "dof_pos"
             )
         clip_obs = self.ctrlCfg.clip_observations
         obs = torch.clamp(obs, -clip_obs, clip_obs)
@@ -838,7 +839,7 @@ class BeetleEnv(DirectRLEnv):
         # print(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
         # print(self._contact_sensor.data.net_forces_w.squeeze(1))
         # # # DEBUG
-        # died = torch.zeros_like(time_out, dtype=torch.bool)
+        died = torch.zeros_like(time_out, dtype=torch.bool)
         return died, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
@@ -1010,19 +1011,14 @@ class BeetleEnv(DirectRLEnv):
         # )
         # desired_matrix = matrix_from_euler(self._desired_zyx_euler_w[env_ids], "ZYX")
         # self._desired_quat_w[env_ids] = quat_from_matrix(desired_matrix)
-        self._desired_quat_w[env_ids] = samlpeUniformQuatwithTilt(torch.tensor(ang_range), len(env_ids)).to(self.device)
-        # self._desired_quat_w[env_ids] = quat_from_euler_xyz(
-        #     self._desired_zyx_euler_w[env_ids][:, 0],
-        #     self._desired_zyx_euler_w[env_ids][:, 1],
-        #     self._desired_zyx_euler_w[env_ids][:, 2],
+        # self._desired_quat_w[env_ids] = samlpeUniformQuatwithTilt(torch.tensor(ang_range), len(env_ids)).to(self.device)
+        # self._desired_pos_w[env_ids, :2] = torch.empty_like(self._desired_pos_w[env_ids, :2]).uniform_(
+        #     -pos_range, pos_range
         # )
-        self._desired_pos_w[env_ids, :2] = torch.empty_like(self._desired_pos_w[env_ids, :2]).uniform_(
-            -pos_range, pos_range
-        )
-        self._desired_pos_w[env_ids, :2] += self._terrain.env_origins[env_ids, :2]
-        self._desired_pos_w[env_ids, 2] = torch.empty_like(self._desired_pos_w[env_ids, 2]).uniform_(
-            max(1.0, 1.5 - pos_range_z), min(1.5 + pos_range_z, 3.0)
-        )
+        # self._desired_pos_w[env_ids, :2] += self._terrain.env_origins[env_ids, :2]
+        # self._desired_pos_w[env_ids, 2] = torch.empty_like(self._desired_pos_w[env_ids, 2]).uniform_(
+        #     max(1.0, 1.5 - pos_range_z), min(1.5 + pos_range_z, 3.0)
+        # )
 
         # Reset robot state
         joint_pos = self._robot.data.default_joint_pos[env_ids]
@@ -1030,16 +1026,31 @@ class BeetleEnv(DirectRLEnv):
         default_root_state = self._robot.data.default_root_state[env_ids]
         default_root_state[:, :3] += self._terrain.env_origins[env_ids]
 
-        init_quat = samlpeUniformQuatwithTilt(torch.tensor(math.pi * 0.5), len(env_ids)).to(self.device)
-        default_root_state[:, 3:7] = init_quat
-        # Linear velocity
-        default_root_state[:, 7:10] = (
-            torch.empty_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
+        # init_quat = samlpeUniformQuatwithTilt(torch.tensor(math.pi * 0.5), len(env_ids)).to(self.device)
+        # default_root_state[:, 3:7] = init_quat
+        # # Linear velocity
+        # default_root_state[:, 7:10] = (
+        #     torch.empty_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
+        # )
+        # # Angular velocity
+        # default_root_state[:, 10:13] = (
+        #     torch.empty_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
+        # )
+
+        self._desired_zyx_euler_w = torch.zeros_like(self._desired_zyx_euler_w)
+        # self._desired_zyx_euler_w[env_ids, 0] = torch.pi * 0.2
+        # self._desired_zyx_euler_w[env_ids, 2] = torch.pi * 0.5
+        self._desired_quat_w[env_ids] = quat_from_euler_xyz(
+            self._desired_zyx_euler_w[env_ids, 0],
+            self._desired_zyx_euler_w[env_ids, 1],
+            self._desired_zyx_euler_w[env_ids, 2],
         )
-        # Angular velocity
-        default_root_state[:, 10:13] = (
-            torch.empty_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
-        )
+        self._desired_pos_w = torch.zeros_like(self._desired_pos_w)
+        self._desired_pos_w[env_ids, :3] += self._terrain.env_origins[env_ids]
+        # self._desired_pos_w[env_ids, 0] += 0.5
+        self._desired_pos_w[env_ids, 2] = 0.6
+        default_root_state[:, 2] = 0.1
+
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
