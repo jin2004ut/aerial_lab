@@ -30,7 +30,7 @@ class NoiseModel:
         if cfg["type"] == "uniform":
             noise = cfg["mean"] + cfg["std"] * (torch.rand(shape, device=self.device) * 2.0 - 1.0)
         elif cfg["type"] == "gaussian":
-            noise = torch.normal(mean=cfg["mean"], std=cfg["std"])
+            noise = torch.normal(mean=cfg["mean"], std=cfg["std"], size=shape, device=self.device)
         else:
             raise ValueError(f"Unsupported noise type {cfg['type']}")
 
