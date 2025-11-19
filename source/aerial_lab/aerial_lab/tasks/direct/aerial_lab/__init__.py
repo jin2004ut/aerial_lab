@@ -13,7 +13,7 @@ from . import agents
 
 
 gym.register(
-    id="Aerial-Lab-Template-Direct-v0",
+    id="Aerial-Template-Direct-v0",
     entry_point=f"{__name__}.aerial_lab_env:AerialLabEnv",
     disable_env_checker=True,
     kwargs={

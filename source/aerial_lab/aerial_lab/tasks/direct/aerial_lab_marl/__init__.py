@@ -13,7 +13,7 @@ from . import agents
 
 
 gym.register(
-    id="Aerial-Lab-Template-Marl-Direct-v0",
+    id="Aerial-Template-Marl-Direct-v0",
     entry_point=f"{__name__}.aerial_lab_marl_env:AerialLabMarlEnv",
     disable_env_checker=True,
     kwargs={

@@ -16,7 +16,7 @@ from . import agents
 ##
 
 gym.register(
-    id="Aerial-Lab-Spidar-Direct-v0",
+    id="Aerial-Spidar-Direct-v0",
     entry_point=f"{__name__}.spidar_env:SpidarEnv",
     disable_env_checker=True,
     kwargs={

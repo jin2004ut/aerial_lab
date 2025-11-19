@@ -10,7 +10,7 @@ from . import agents
 ##
 
 gym.register(
-    id="Aerial-Lab-Velocity-Flat-Unitree-A1-v0",
+    id="Aerial-Velocity-Flat-Unitree-A1-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -21,7 +21,7 @@ gym.register(
 )
 
 gym.register(
-    id="Aerial-Lab-Velocity-Rough-Unitree-A1-v0",
+    id="Aerial-Velocity-Rough-Unitree-A1-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

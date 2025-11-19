@@ -16,7 +16,7 @@ from . import agents
 ##
 
 gym.register(
-    id="Aerial-Lab-Dragon-Direct-v0",
+    id="Aerial-Dragon-Direct-v0",
     entry_point=f"{__name__}.dragon_env:DragonEnv",
     disable_env_checker=True,
     kwargs={
