@@ -88,8 +88,8 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # last action (8)
     observation_space = 9 + 6 + 3 + 6 + 3 + gimbal_num + action_space
     thrust_to_torque_ratio = 0.0165
-    rotor_direction = [1, -1, -1, 1]
-    # rotor_direction = [1, 1, 1, 1]
+    # rotor_direction = [1, -1, 1, -1]  # beetle_hyper, joint urdf configuraion
+    rotor_direction = [-1, 1, -1, 1]
     contact_force_threshold = 0.1
 
     state_space = observation_space + action_space
@@ -145,7 +145,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     died_reward_scale = -1.0
     reach_goal_reward_timeout_scale = 0.0
-    reach_goal_reward_scale = 0.5
+    reach_goal_reward_scale = 0.0
 
     # # # # Noise Configuration
     noiseCfg = {
@@ -316,8 +316,8 @@ class BeetleEnv(DirectRLEnv):
                 # "angular_error_to_goal",
                 "angular_to_goal",
                 "died",
-                # "reach_goal",
-                # "reach_goal_timeout",
+                "reach_goal",
+                "reach_goal_timeout",
             ]
         }
 
@@ -651,25 +651,17 @@ class BeetleEnv(DirectRLEnv):
             torch.logical_and(ang_vel_norm < ANG_VEL_TH, lin_vel_norm < LIN_VEL_TH),
             torch.logical_and(angular_to_goal < ANG_TH, distance_to_goal < POS_TH),
         )
-        self._reach_goal_count += reach_goal.to(torch.float32) * self.reset_time_outs.to(torch.float32)
         self._reach_goal = reach_goal.to(torch.float32) * self.reset_time_outs.to(torch.float32)
+        self._reach_goal_count += self._reach_goal
         reach_goal_reward_timeout = (
-            self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * self.episode_length_buf
+            self.reset_time_outs.to(torch.float32) * reach_goal.to(torch.float32) * self.max_episode_length_s
         )
         reach_goal_reward = torch.zeros_like(reach_goal_reward_timeout)
-        reach_goal_reward += reach_goal.to(torch.float32) * self.step_dt
-        reach_goal_reward += (
-            torch.exp((POS_TH - distance_to_goal) / POS_TH) * reach_goal.to(torch.float32) * self.step_dt
-        )
-        reach_goal_reward += (
-            torch.exp((ANG_TH - angular_to_goal) / ANG_TH) * reach_goal.to(torch.float32) * self.step_dt
-        )
-        reach_goal_reward += (
-            torch.exp((LIN_VEL_TH - lin_vel_norm) / LIN_VEL_TH) * reach_goal.to(torch.float32) * self.step_dt
-        )
-        reach_goal_reward += (
-            torch.exp((ANG_VEL_TH - ang_vel_norm) / ANG_VEL_TH) * reach_goal.to(torch.float32) * self.step_dt
-        )
+        reach_goal_reward += reach_goal.to(torch.float32) * self.step_dt * 5.0
+        reach_goal_reward += -distance_to_goal / POS_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -angular_to_goal / ANG_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -lin_vel_norm / LIN_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
+        reach_goal_reward += -ang_vel_norm / ANG_VEL_TH * reach_goal.to(torch.float32) * self.step_dt
 
         # self._reach_goal_count = reach_goal.to(torch.float32) * (self._reach_goal_count + 1) * self.reset_time_outs.to(torch.float32)
         # self._reach_goal = reach_goal.to(torch.float32) * 1.0 * self.reset_time_outs.to(torch.float32)
@@ -704,10 +696,10 @@ class BeetleEnv(DirectRLEnv):
         #     * self.max_episode_length_s
         # )
         # reach_goal_reward = torch.clamp(reach_goal_reward, min=0.0, max=40.0)
-        # total_reward += reach_goal_reward * self.cfg.reach_goal_reward_scale
-        # rewards["reach_goal"] = reach_goal_reward
-        # rewards["reach_goal_timeout"] = reach_goal_reward_timeout
-        # total_reward += reach_goal_reward_timeout * self.cfg.reach_goal_reward_timeout_scale
+        total_reward += reach_goal_reward * self.cfg.reach_goal_reward_scale
+        rewards["reach_goal"] = reach_goal_reward * self.cfg.reach_goal_reward_scale
+        total_reward += reach_goal_reward_timeout * self.cfg.reach_goal_reward_timeout_scale
+        rewards["reach_goal_timeout"] = reach_goal_reward_timeout * self.cfg.reach_goal_reward_timeout_scale
         # reach_goal_precise_reward = self.reset_time_outs.to(torch.float32) * reach_goal_precise.to(torch.float32) * 30.0
         # reach_goal_rough_reward = self.reset_time_outs.to(torch.float32) * reach_goal_rough.to(torch.float32) * 30.0
         # total_reward += reach_goal_reward + reach_goal_precise_reward + reach_goal_rough_reward
@@ -743,11 +735,9 @@ class BeetleEnv(DirectRLEnv):
             env_ids = self._robot._ALL_INDICES
 
         quat_sample_rate = (
-            (self.common_step_counter - 200 * 24) / self.cfg.max_curricular_steps * 4
+            (self.common_step_counter + 200 * 24) / self.cfg.max_curricular_steps * 12
         )  # start from 0.3, reach 0.8
-        pos_sample_rate = (
-            (self.common_step_counter - 50 * 24) / self.cfg.max_curricular_steps * 8
-        )  # start from 0.1, reach 0.6
+        pos_sample_rate = (self.common_step_counter) / self.cfg.max_curricular_steps * 12  # start from 0.1, reach 0.6
         quat_sample_rate = max(quat_sample_rate, 0.0)
         pos_sample_rate = max(pos_sample_rate, 0.0)
 
@@ -757,7 +747,7 @@ class BeetleEnv(DirectRLEnv):
 
         quat_sample_rate = min(quat_sample_rate, 1.0)
         pos_sample_rate = min(pos_sample_rate, 1.0)
-        quat_sample_rate = 1.0
+        # quat_sample_rate = 1.0
         pos_sample_rate = 1.0
         self._quat_sample_rate = quat_sample_rate
         self._pos_sample_rate = pos_sample_rate
@@ -906,7 +896,7 @@ class BeetleEnv(DirectRLEnv):
         )
         self._desired_pos_w[env_ids, :2] += self._terrain.env_origins[env_ids, :2]
         self._desired_pos_w[env_ids, 2] = torch.empty_like(self._desired_pos_w[env_ids, 2]).uniform_(
-            max(1.0, 1.5 - pos_range_z), min(1.5 + pos_range_z, 3.0)
+            max(0.5, 1.5 - pos_range_z), min(1.5 + pos_range_z, 3.0)
         )
 
         # Reset robot state
