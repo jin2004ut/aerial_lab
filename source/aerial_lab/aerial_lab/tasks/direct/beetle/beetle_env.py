@@ -127,9 +127,9 @@ class EventCfg:
 @configclass
 class BeetleEnvCfg(DirectRLEnvCfg):
     # env
-    sim_dt = 1 / 200.0
-    decimation = 4
-    evaluate_mode = False
+    sim_dt = 1 / 500.0
+    decimation = 5
+    evaluate_mode = True
     episode_length_s = 15.0
     max_curricular_steps = 8000.0 * 24  # num_steps_per_env * max_iterations
     # - spaces definition
@@ -143,7 +143,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # distance_to_goal (local frame) (3)
     # servo positions (4)
     # last action (8)
-    observation_space = 9 + 6 + 3 + 6 + 3 + gimbal_num + action_space
+    observation_space = 9 + 6 + 3 + 6 + gimbal_num + action_space
     thrust_to_torque_ratio = 0.0165
     rotor_direction = [-1, 1, -1, 1]  # beetle_hyper, joint urdf configuration
     contact_force_threshold = 0.1
@@ -204,9 +204,9 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     reach_goal_reward_scale = 0.1
 
     # smoothing reward scales
-    gimbal_action_rate_reward_scale = 0.0  # -1.0e-3
+    gimbal_action_rate_reward_scale = -1.0e-5  # -1.0e-3
     thrust_action_rate_reward_scale = 0.0  # -1.0e-4
-    gimbal_acc_reward_scale = -2.5e-7
+    gimbal_acc_reward_scale = -1.5e-7
     gimbal_limit_reward_scale = 0.0  # -0.01
     gimbal_limit_scale = math.pi * 0.45
     thrust_limit_reward_scale = -0.01
@@ -214,27 +214,27 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     # # # # Noise Configuration
     noiseCfg = {
-        # "root_pos": {
-        #     "type": "uniform",
-        #     "dim": 3,
-        #     "mean": 0.0,
-        #     "std": 0.02,
-        #     "clip": 0.3,
-        # },
-        # "lin_vel": {
-        #     "type": "uniform",
-        #     "dim": 3,
-        #     "mean": 0.0,
-        #     "std": 0.1,
-        #     "clip": 0.3,
-        # },
-        # "ang_vel": {
-        #     "type": "uniform",
-        #     "dim": 3,
-        #     "mean": 0.0,
-        #     "std": 0.3,
-        #     "clip": 0.3,
-        # },
+        "root_pos": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.02,
+            "clip": 0.3,
+        },
+        "lin_vel": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.05,
+            "clip": 0.3,
+        },
+        "ang_vel": {
+            "type": "uniform",
+            "dim": 3,
+            "mean": 0.0,
+            "std": 0.1,
+            "clip": 0.3,
+        },
         # "gravity": {
         #     "type": "uniform",
         #     "dim": 3,
@@ -242,13 +242,13 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         #     "std": 0.05,
         #     "clip": 0.1,
         # },
-        # "dof_pos": {
-        #     "type": "uniform",
-        #     "dim": gimbal_num,
-        #     "mean": 0.0,
-        #     "std": 0.02,
-        #     "clip": 0.1,
-        # },
+        "dof_pos": {
+            "type": "uniform",
+            "dim": gimbal_num,
+            "mean": 0.0,
+            "std": 0.02,
+            "clip": 0.1,
+        },
     }
 
     rotorCfg = {
@@ -571,7 +571,7 @@ class BeetleEnv(DirectRLEnv):
         # print("Root       Prj Gra (body frame): ", self._robot.data.projected_gravity_b[0])
         # print("IMU Sensor Prj Gra (body frame): ", self._imu_sensor.data.projected_gravity_b[0])
 
-        angular_error = self._angle_error
+        # angular_error = self._angle_error
 
         obs = torch.cat(
             (
@@ -579,7 +579,7 @@ class BeetleEnv(DirectRLEnv):
                 self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
                 self._robot.data.projected_gravity_b,
                 goal_pos_b,
-                angular_error,
+                # angular_error,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos,
                 root_rot_vec,
                 goal_rot_vec,
@@ -587,20 +587,21 @@ class BeetleEnv(DirectRLEnv):
             ),
             dim=-1,
         )
-        if "lin_vel" in self.noiseModel.params:
-            obs[:, 0:3] = self.noiseModel.apply(obs[:, 0:3], "lin_vel")
-        if "ang_vel" in self.noiseModel.params:
-            obs[:, 3:6] = self.noiseModel.apply(obs[:, 3:6], "ang_vel")
-        if "gravity" in self.noiseModel.params:
-            obs[:, 6:9] = self.noiseModel.apply(obs[:, 6:9], "gravity")
-        if "root_pos" in self.noiseModel.params:
-            obs[:, 9:12] = self.noiseModel.apply(obs[:, 9:12], "root_pos")
-        if "root_ang" in self.noiseModel.params:
-            obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
-        if "dof_pos" in self.noiseModel.params:
-            obs[:, 18 : 18 + self.cfg.gimbal_num] = self.noiseModel.apply(
-                obs[:, :, 18 : 18 + self.cfg.gimbal_num], "dof_pos"
-            )
+        if self.cfg.evaluate_mode is False:
+            if "lin_vel" in self.noiseModel.params:
+                obs[:, 0:3] = self.noiseModel.apply(obs[:, 0:3], "lin_vel")
+            if "ang_vel" in self.noiseModel.params:
+                obs[:, 3:6] = self.noiseModel.apply(obs[:, 3:6], "ang_vel")
+            if "gravity" in self.noiseModel.params:
+                obs[:, 6:9] = self.noiseModel.apply(obs[:, 6:9], "gravity")
+            if "root_pos" in self.noiseModel.params:
+                obs[:, 9:12] = self.noiseModel.apply(obs[:, 9:12], "root_pos")
+            # if "root_ang" in self.noiseModel.params:
+            #     obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
+            if "dof_pos" in self.noiseModel.params:
+                obs[:, 12 : 12 + self.cfg.gimbal_num] = self.noiseModel.apply(
+                    obs[:, 12 : 12 + self.cfg.gimbal_num], "dof_pos"
+                )
         clip_obs = self.ctrlCfg.clip_observations
         obs = torch.clamp(obs, -clip_obs, clip_obs)
         states = self._get_states()
@@ -618,7 +619,7 @@ class BeetleEnv(DirectRLEnv):
         goal_rot_mat = matrix_from_quat(self._desired_quat_w)
         goal_rot_vec = goal_rot_mat[:, :2, :].reshape(self.num_envs, 6)
 
-        angular_error = self._angle_error
+        # angular_error = self._angle_error
 
         states = torch.cat(
             (
@@ -626,7 +627,7 @@ class BeetleEnv(DirectRLEnv):
                 self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
                 self._robot.data.projected_gravity_b,
                 goal_pos_b,
-                angular_error,
+                # angular_error,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos,
                 root_rot_vec,
                 goal_rot_vec,
@@ -730,6 +731,10 @@ class BeetleEnv(DirectRLEnv):
         reach_goal = torch.logical_and(
             torch.logical_and(ang_vel_norm < ANG_VEL_TH, lin_vel_norm < LIN_VEL_TH),
             torch.logical_and(angular_to_goal < ANG_TH, distance_to_goal < POS_TH),
+        )
+        reach_goal = torch.logical_and(
+            reach_goal,
+            self.episode_length_buf > (self.max_episode_length - (2.0 / (self.cfg.sim.dt * self.cfg.decimation))),
         )
         self._reach_goal_state = reach_goal
         self._reach_goal = reach_goal.to(torch.float32) * self.reset_time_outs.to(torch.float32)
