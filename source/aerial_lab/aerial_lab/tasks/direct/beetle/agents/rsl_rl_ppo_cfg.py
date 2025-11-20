@@ -14,7 +14,7 @@ from isaaclab_rl.rsl_rl import (
 @configclass
 class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 8001
+    max_iterations = 20001
     save_interval = 1000
     experiment_name = "beetle_direct"
     obs_groups = {

@@ -202,8 +202,8 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     angular_to_goal_reward_scale = 2.5
 
     died_reward_scale = -1.0
-    reach_goal_reward_timeout_scale = 0.05
-    reach_goal_reward_scale = 0.1
+    reach_goal_reward_timeout_scale = 0.0
+    reach_goal_reward_scale = 0.0
 
     # smoothing reward scales
     gimbal_action_rate_reward_scale = 0.0  # -1.0e-3
