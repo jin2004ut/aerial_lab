@@ -1,12 +1,14 @@
 import csv
-from pathlib import Path
+import time
 from collections import deque
 from datetime import datetime
-import time
-import numpy as np
+from pathlib import Path
+
 # Plotting imports
 import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend for thread safety
+import numpy as np
+
+matplotlib.use("Agg")  # Use non-interactive backend for thread safety
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
@@ -48,15 +50,56 @@ class ObservationLogger:
 
         # Data buffers with labels
         self.obs_labels = [
-            "lin_vel_x", "lin_vel_y", "lin_vel_z",
-            "ang_vel_x", "ang_vel_y", "ang_vel_z",
-            "gravity_x", "gravity_y", "gravity_z",
-            "goal_pos_x", "goal_pos_y", "goal_pos_z",
-            "ang_err_x", "ang_err_y", "ang_err_z",
-            "gimbal_0", "gimbal_1", "gimbal_2", "gimbal_3",
-            "root_rot_0", "root_rot_1", "root_rot_2", "root_rot_3", "root_rot_4", "root_rot_5",
-            "goal_rot_0", "goal_rot_1", "goal_rot_2", "goal_rot_3", "goal_rot_4", "goal_rot_5",
-            "action_0", "action_1", "action_2", "action_3", "action_4", "action_5", "action_6", "action_7",
+            "lin_vel_x",
+            "lin_vel_y",
+            "lin_vel_z",
+            "ang_vel_x",
+            "ang_vel_y",
+            "ang_vel_z",
+            "gravity_x",
+            "gravity_y",
+            "gravity_z",
+            "goal_pos_x",
+            "goal_pos_y",
+            "goal_pos_z",
+            "ang_err_x",
+            "ang_err_y",
+            "ang_err_z",
+            "gimbal_0",
+            "gimbal_1",
+            "gimbal_2",
+            "gimbal_3",
+            "root_rot_0",
+            "root_rot_1",
+            "root_rot_2",
+            "root_rot_3",
+            "root_rot_4",
+            "root_rot_5",
+            "goal_rot_0",
+            "goal_rot_1",
+            "goal_rot_2",
+            "goal_rot_3",
+            "goal_rot_4",
+            "goal_rot_5",
+            "last_action_0",
+            "last_action_1",
+            "last_action_2",
+            "last_action_3",
+            "last_action_4",
+            "last_action_5",
+            "last_action_6",
+            "last_action_7",
+        ]
+
+        self.action_labels = [
+            "action_0",
+            "action_1",
+            "action_2",
+            "action_3",
+            "action_4",
+            "action_5",
+            "action_6",
+            "action_7",
         ]
 
         self.timestamps = deque(maxlen=max_samples)
@@ -78,7 +121,7 @@ class ObservationLogger:
         numbers = []
         for p in existing_plots:
             try:
-                num = int(p.stem.split('_')[-1])
+                num = int(p.stem.split("_")[-1])
                 numbers.append(num)
             except ValueError:
                 continue
@@ -132,10 +175,10 @@ class ObservationLogger:
             actions = np.array(self.action_data)
 
             # Create header
-            header = ["timestamp", "time_elapsed"] + self.obs_labels
+            header = ["timestamp", "time_elapsed"] + self.obs_labels + self.action_labels
 
             # Open CSV file
-            with open(csv_path, 'w', newline='') as csvfile:
+            with open(csv_path, "w", newline="") as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(header)
 
@@ -143,10 +186,10 @@ class ObservationLogger:
                 start_time = timestamps[0]
                 for i in range(len(timestamps)):
                     row = [
-                        timestamps[i],                      # Absolute timestamp
-                        timestamps[i] - start_time,         # Relative time
-                        *obs[i].tolist(),                   # Observations
-                        *actions[i].tolist()                # Actions
+                        timestamps[i],  # Absolute timestamp
+                        timestamps[i] - start_time,  # Relative time
+                        *obs[i].tolist(),  # Observations
+                        *actions[i].tolist(),  # Actions
                     ]
                     writer.writerow(row)
 
@@ -182,22 +225,51 @@ class ObservationLogger:
         plot_configs = [
             # Row 1: Velocities
             {"idx": slice(0, 3), "title": "Linear Velocity (Body Frame)", "ylabel": "m/s", "labels": ["x", "y", "z"]},
-            {"idx": slice(3, 6), "title": "Angular Velocity (Body Frame)", "ylabel": "rad/s", "labels": ["x", "y", "z"]},
+            {
+                "idx": slice(3, 6),
+                "title": "Angular Velocity (Body Frame)",
+                "ylabel": "rad/s",
+                "labels": ["x", "y", "z"],
+            },
             {"idx": slice(6, 9), "title": "Gravity Projection", "ylabel": "unit", "labels": ["x", "y", "z"]},
-
             # Row 2: Goal and Errors
             {"idx": slice(9, 12), "title": "Goal Position (Body Frame)", "ylabel": "m", "labels": ["x", "y", "z"]},
             {"idx": slice(12, 15), "title": "Angular Error", "ylabel": "rad", "labels": ["x", "y", "z"]},
             {"idx": slice(15, 19), "title": "Gimbal DOF", "ylabel": "rad", "labels": ["0", "1", "2", "3"]},
-
             # Row 3: Rotation vectors
-            {"idx": slice(19, 25), "title": "Root Rotation Vector", "ylabel": "unit", "labels": ["0", "1", "2", "3", "4", "5"]},
-            {"idx": slice(25, 31), "title": "Goal Rotation Vector", "ylabel": "unit", "labels": ["0", "1", "2", "3", "4", "5"]},
-            {"idx": slice(31, 39), "title": "Last Action (in obs)", "ylabel": "unit", "labels": ["0", "1", "2", "3", "4", "5", "6", "7"]},
-
+            {
+                "idx": slice(19, 25),
+                "title": "Root Rotation Vector",
+                "ylabel": "unit",
+                "labels": ["0", "1", "2", "3", "4", "5"],
+            },
+            {
+                "idx": slice(25, 31),
+                "title": "Goal Rotation Vector",
+                "ylabel": "unit",
+                "labels": ["0", "1", "2", "3", "4", "5"],
+            },
+            {
+                "idx": slice(31, 39),
+                "title": "Last Action (in obs)",
+                "ylabel": "unit",
+                "labels": ["0", "1", "2", "3", "4", "5", "6", "7"],
+            },
             # Row 4: Actions
-            {"idx": slice(0, 4), "title": "Target Gimbal", "ylabel": "rad", "labels": ["0", "1", "2", "3"], "data": "action"},
-            {"idx": slice(4, 8), "title": "Target Thrust", "ylabel": "N", "labels": ["0", "1", "2", "3"], "data": "action"},
+            {
+                "idx": slice(0, 4),
+                "title": "Target Gimbal",
+                "ylabel": "rad",
+                "labels": ["0", "1", "2", "3"],
+                "data": "action",
+            },
+            {
+                "idx": slice(4, 8),
+                "title": "Target Thrust",
+                "ylabel": "N",
+                "labels": ["0", "1", "2", "3"],
+                "data": "action",
+            },
             {"idx": None, "title": "Performance", "ylabel": "", "labels": []},  # Placeholder for text
         ]
 
@@ -206,17 +278,13 @@ class ObservationLogger:
 
             if config["idx"] is None:
                 # Performance metrics text
-                ax.axis('off')
+                ax.axis("off")
                 mean_dt = np.mean(np.diff(t)) if len(t) > 1 else 0
                 freq = 1.0 / mean_dt if mean_dt > 0 else 0
                 info_text = (
-                    f"Samples: {len(t)}\n"
-                    f"Duration: {t[-1]:.2f}s\n"
-                    f"Mean dt: {mean_dt*1000:.2f}ms\n"
-                    f"Freq: {freq:.1f}Hz"
+                    f"Samples: {len(t)}\nDuration: {t[-1]:.2f}s\nMean dt: {mean_dt*1000:.2f}ms\nFreq: {freq:.1f}Hz"
                 )
-                ax.text(0.1, 0.5, info_text, fontsize=12, family='monospace',
-                       verticalalignment='center')
+                ax.text(0.1, 0.5, info_text, fontsize=12, family="monospace", verticalalignment="center")
             else:
                 # Plot data
                 data = actions if config.get("data") == "action" else obs
@@ -225,23 +293,26 @@ class ObservationLogger:
                 for j, label in enumerate(config["labels"]):
                     ax.plot(t, data[:, indices.start + j], label=label, linewidth=1.5)
 
-                ax.set_title(config["title"], fontsize=10, fontweight='bold')
+                ax.set_title(config["title"], fontsize=10, fontweight="bold")
                 ax.set_xlabel("Time (s)", fontsize=9)
                 ax.set_ylabel(config["ylabel"], fontsize=9)
-                ax.legend(loc='upper right', fontsize=8)
+                ax.legend(loc="upper right", fontsize=8)
                 ax.grid(True, alpha=0.3)
                 ax.tick_params(labelsize=8)
 
         # Add overall title
-        fig.suptitle(f"Observation & Action Data - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 
-                    fontsize=14, fontweight='bold')
+        fig.suptitle(
+            f"Observation & Action Data - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            fontsize=14,
+            fontweight="bold",
+        )
 
         # Save figure
         filename = f"obs_plot_{self.plot_counter:04d}.png"
         save_path = self.save_dir / filename
 
         try:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
             print(f"✓ Plot saved: {save_path}")
         except Exception as e:
             print(f"✗ Failed to save plot {filename}: {e}")

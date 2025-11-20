@@ -143,7 +143,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # distance_to_goal (local frame) (3)
     # servo positions (4)
     # last action (8)
-    observation_space = 9 + 6 + 3 + 6 + 3 + gimbal_num + action_space
+    observation_space = 9 + 6 + 3 + 6 + gimbal_num + action_space
     thrust_to_torque_ratio = 0.0165
     rotor_direction = [-1, 1, -1, 1]  # beetle_hyper, joint urdf configuration
     contact_force_threshold = 0.1
@@ -532,6 +532,7 @@ class BeetleEnv(DirectRLEnv):
         #################################################
 
     def _apply_action(self) -> None:
+        """Apply the action to the robot. Every dt step"""
         if self.common_step_counter > 50:
             self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
             self._robot.set_external_force_and_torque(
@@ -551,14 +552,14 @@ class BeetleEnv(DirectRLEnv):
         #     print(f"Robot [{env_ids}] root com: [{root_com_str}], default com: [{default_com_str}]")
 
     def _get_observations(self) -> dict:
-        goal_pos_b, _ = subtract_frame_transforms(
-            self._robot.data.root_pos_w, self._robot.data.root_quat_w, self._desired_pos_w
+        goal_pos_b, goal_quat_w = subtract_frame_transforms(
+            self._robot.data.root_pos_w, self._robot.data.root_quat_w, self._desired_pos_w, self._desired_quat_w
         )
         # desired_ang_bias = self._angle_error
         root_rot_mat = matrix_from_quat(self._robot.data.root_quat_w)
         root_rot_vec = root_rot_mat[:, :2, :].reshape(self.num_envs, 6)
 
-        goal_rot_mat = matrix_from_quat(self._desired_quat_w)
+        goal_rot_mat = matrix_from_quat(goal_quat_w)
         goal_rot_vec = goal_rot_mat[:, :2, :].reshape(self.num_envs, 6)
 
         # IMU Debug Info
@@ -572,7 +573,7 @@ class BeetleEnv(DirectRLEnv):
         # print("Root       Prj Gra (body frame): ", self._robot.data.projected_gravity_b[0])
         # print("IMU Sensor Prj Gra (body frame): ", self._imu_sensor.data.projected_gravity_b[0])
 
-        angular_error = self._angle_error
+        # angular_error = self._angle_error
 
         obs = torch.cat(
             (
@@ -580,7 +581,7 @@ class BeetleEnv(DirectRLEnv):
                 self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
                 self._robot.data.projected_gravity_b,
                 goal_pos_b,
-                angular_error,
+                # angular_error,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos,
                 root_rot_vec,
                 goal_rot_vec,
@@ -588,20 +589,20 @@ class BeetleEnv(DirectRLEnv):
             ),
             dim=-1,
         )
-        if "lin_vel" in self.noiseModel.params:
-            obs[:, 0:3] = self.noiseModel.apply(obs[:, 0:3], "lin_vel")
-        if "ang_vel" in self.noiseModel.params:
-            obs[:, 3:6] = self.noiseModel.apply(obs[:, 3:6], "ang_vel")
-        if "gravity" in self.noiseModel.params:
-            obs[:, 6:9] = self.noiseModel.apply(obs[:, 6:9], "gravity")
-        if "root_pos" in self.noiseModel.params:
-            obs[:, 9:12] = self.noiseModel.apply(obs[:, 9:12], "root_pos")
-        if "root_ang" in self.noiseModel.params:
-            obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
-        if "dof_pos" in self.noiseModel.params:
-            obs[:, 18 : 18 + self.cfg.gimbal_num] = self.noiseModel.apply(
-                obs[:, 18 : 18 + self.cfg.gimbal_num], "dof_pos"
-            )
+        # if "lin_vel" in self.noiseModel.params:
+        #     obs[:, 0:3] = self.noiseModel.apply(obs[:, 0:3], "lin_vel")
+        # if "ang_vel" in self.noiseModel.params:
+        #     obs[:, 3:6] = self.noiseModel.apply(obs[:, 3:6], "ang_vel")
+        # if "gravity" in self.noiseModel.params:
+        #     obs[:, 6:9] = self.noiseModel.apply(obs[:, 6:9], "gravity")
+        # if "root_pos" in self.noiseModel.params:
+        #     obs[:, 9:12] = self.noiseModel.apply(obs[:, 9:12], "root_pos")
+        # if "root_ang" in self.noiseModel.params:
+        #     obs[:, 15:18] = self.noiseModel.apply(obs[:, 15:18], "root_ang")
+        # if "dof_pos" in self.noiseModel.params:
+        #     obs[:, 18 : 18 + self.cfg.gimbal_num] = self.noiseModel.apply(
+        #         obs[:, 18 : 18 + self.cfg.gimbal_num], "dof_pos"
+        #     )
         clip_obs = self.ctrlCfg.clip_observations
         obs = torch.clamp(obs, -clip_obs, clip_obs)
         states = self._get_states()
@@ -609,14 +610,14 @@ class BeetleEnv(DirectRLEnv):
         return observations
 
     def _get_states(self) -> torch.Tensor:
-        goal_pos_b, _ = subtract_frame_transforms(
-            self._robot.data.root_pos_w, self._robot.data.root_quat_w, self._desired_pos_w
+        goal_pos_b, goal_quat_w = subtract_frame_transforms(
+            self._robot.data.root_pos_w, self._robot.data.root_quat_w, self._desired_pos_w, self._desired_quat_w
         )
         # desired_ang_bias = self._angle_error
         root_rot_mat = matrix_from_quat(self._robot.data.root_quat_w)
         root_rot_vec = root_rot_mat[:, :2, :].reshape(self.num_envs, 6)
 
-        goal_rot_mat = matrix_from_quat(self._desired_quat_w)
+        goal_rot_mat = matrix_from_quat(goal_quat_w)
         goal_rot_vec = goal_rot_mat[:, :2, :].reshape(self.num_envs, 6)
 
         angular_error = self._angle_error
@@ -627,7 +628,7 @@ class BeetleEnv(DirectRLEnv):
                 self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
                 self._robot.data.projected_gravity_b,
                 goal_pos_b,
-                angular_error,
+                # angular_error,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos,
                 root_rot_vec,
                 goal_rot_vec,
@@ -1038,14 +1039,14 @@ class BeetleEnv(DirectRLEnv):
         # )
 
         self._desired_zyx_euler_w = torch.zeros_like(self._desired_zyx_euler_w)
-        # self._desired_zyx_euler_w[env_ids, 0] = torch.pi * 0.2
+        self._desired_zyx_euler_w[env_ids, 0] = torch.pi * 0.2
         # self._desired_zyx_euler_w[env_ids, 2] = torch.pi * 0.5
         self._desired_quat_w[env_ids] = quat_from_euler_xyz(
             self._desired_zyx_euler_w[env_ids, 0],
             self._desired_zyx_euler_w[env_ids, 1],
             self._desired_zyx_euler_w[env_ids, 2],
         )
-        self._desired_pos_w = torch.zeros_like(self._desired_pos_w)
+        self._desired_pos_w[env_ids, :3] = torch.zeros_like(self._desired_pos_w[env_ids, :3])
         self._desired_pos_w[env_ids, :3] += self._terrain.env_origins[env_ids]
         # self._desired_pos_w[env_ids, 0] += 0.5
         self._desired_pos_w[env_ids, 2] = 0.6

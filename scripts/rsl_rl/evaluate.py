@@ -53,12 +53,14 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
+import math
 import os
 import time
 
 import aerial_lab.tasks  # noqa: F401
 import gymnasium as gym
 import isaaclab_tasks  # noqa: F401
+import numpy as np
 import torch
 from isaaclab.envs import (
     DirectMARLEnv,
@@ -79,9 +81,8 @@ from isaaclab_rl.rsl_rl import (
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+
 from aerial_lab.utility.plotLogger import ObservationLogger  # isort: skip
-import numpy as np
-import math
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)
@@ -194,9 +195,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             obs, _, _, _ = env.step(actions)
 
             obs_np = obs[0]["policy"].cpu().numpy()
+            obs_39 = np.concatenate([
+                obs_np[:12],  # lin_vel(3) + ang_vel(3) + gravity(3) + goal_pos(3)
+                np.zeros(3, dtype=np.float32),  # placeholder for angular_error
+                obs_np[12:],  # gimbal(4) + root_rot(6) + goal_rot(6) + last_action(8)
+            ])
             actions_np = actions[0].cpu().numpy()
-            plot_logger.log(obs_np, actions_np)
-            if timestep == 500:
+            plot_logger.log(obs_39, actions_np)
+            if timestep == 200:
                 plot_logger.save_to_csv()
 
         if args_cli.video:
