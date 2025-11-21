@@ -14,8 +14,8 @@ from isaaclab_rl.rsl_rl import (
 @configclass
 class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 20001
-    save_interval = 1000
+    max_iterations = 10001
+    save_interval = 200
     experiment_name = "beetle_direct"
     obs_groups = {
         "policy": ["policy"],
@@ -33,7 +33,7 @@ class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.002,
+        entropy_coef=0.0015,
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=5.0e-4,  # default 5.0e-4

@@ -11,7 +11,7 @@ import isaaclab.sim as sim_utils
 
 # from aerial_lab.actuators import RotorActuatorCfg
 from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
-from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
+from isaaclab.actuators import DCMotorCfg, DelayedPDActuatorCfg, ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
 
 ##
@@ -137,14 +137,28 @@ BEETLE_CFG = ArticulationCfg(
             friction=0.0,
             dynamic_friction=0.0,
         ),
-        "gimbal": DCMotorCfg(
+        # "gimbal": DCMotorCfg(
+        #     joint_names_expr=["gimbal.*"],
+        #     effort_limit=6.6,
+        #     saturation_effort=10.0,
+        #     velocity_limit=3.0,
+        #     velocity_limit_sim=3.0,
+        #     effort_limit_sim=6.6,
+        #     stiffness=5.0,
+        #     damping=0.1,
+        #     friction=0.0,
+        # ),
+        "gimbal": DelayedPDActuatorCfg(
             joint_names_expr=["gimbal.*"],
-            effort_limit=2.0,
-            saturation_effort=2.0,
-            velocity_limit=10.0,
+            effort_limit=6.6,
+            velocity_limit=3.0,
+            velocity_limit_sim=3.0,
+            effort_limit_sim=6.6,
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
+            min_delay=1,
+            max_delay=3,
         ),
     },
 )
@@ -203,7 +217,9 @@ BEETLE_OMNI_CFG = ArticulationCfg(
             joint_names_expr=["gimbal.*"],
             effort_limit=1.0,
             saturation_effort=1.0,
-            velocity_limit=10.0,
+            velocity_limit=3.0,
+            velocity_limit_sim=3.0,
+            effort_limit_sim=6.6,
             stiffness=5.0,
             damping=0.1,
             friction=0.0,

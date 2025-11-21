@@ -125,13 +125,13 @@ class EventCfg:
 
 
 @configclass
-class BeetleEnvCfg(DirectRLEnvCfg):
+class BeetleOmniEnvCfg(DirectRLEnvCfg):
     # env
     sim_dt = 1 / 200.0
     decimation = 4
     evaluate_mode = False
-    add_noise = False
-    add_randomization = False
+    add_noise = True
+    add_randomization = True
     episode_length_s = 15.0
     max_curricular_steps = 8000.0 * 24  # num_steps_per_env * max_iterations
     # - spaces definition
@@ -146,7 +146,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # servo positions (4)
     # last action (8)
     observation_space = 9 + 6 + 3 + 6 + gimbal_num + action_space
-    thrust_to_torque_ratio = -0.0157  # -0.0165
+    thrust_to_torque_ratio = -0.0165
     rotor_direction = [1, -1, 1, -1]  # beetle_hyper, joint urdf configuration
     contact_force_threshold = 0.1
 
@@ -188,8 +188,8 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     lin_vel_th = 3.0
     ang_vel_reward_scale = -0.02  # -0.01
     ang_vel_th = 6.0
-    lin_vel_static_reward_scale = -0.0
-    ang_vel_static_reward_scale = -0.0
+    lin_vel_static_reward_scale = -0.02
+    ang_vel_static_reward_scale = -0.01
     # reach_lin_vel_reward_scale = -0.05
     # reach_ang_vel_reward_scale = -0.1
     thrust_power_reward_scale = -2.0e-6  # -1.0e-4
@@ -203,7 +203,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
 
     died_reward_scale = -1.0
     reach_goal_reward_timeout_scale = 0.0
-    reach_goal_reward_scale = 0.01
+    reach_goal_reward_scale = 0.0
 
     # smoothing reward scales
     gimbal_action_rate_reward_scale = 0.0  # -1.0e-3
@@ -220,7 +220,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             "type": "uniform",
             "dim": 3,
             "mean": 0.0,
-            "std": 0.005,
+            "std": 0.01,
             "clip": 0.3,
         },
         "root_quat": {
@@ -234,14 +234,14 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             "type": "uniform",
             "dim": 3,
             "mean": 0.0,
-            "std": 0.02,
+            "std": 0.05,
             "clip": 0.3,
         },
         "ang_vel": {
             "type": "uniform",
             "dim": 3,
             "mean": 0.0,
-            "std": 0.05,
+            "std": 0.1,
             "clip": 0.3,
         },
         # "gravity": {
@@ -344,10 +344,10 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         events: EventCfg = EventCfg()
 
 
-class BeetleEnv(DirectRLEnv):
-    cfg: BeetleEnvCfg
+class BeetleOmniEnv(DirectRLEnv):
+    cfg: BeetleOmniEnvCfg
 
-    def __init__(self, cfg: BeetleEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(self, cfg: BeetleOmniEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
         # Basic cfgs
         self.obsScales = cfg.normalization.obs_scales
@@ -385,8 +385,6 @@ class BeetleEnv(DirectRLEnv):
         self._gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
         self._gimbal_vel = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
         self._gimbal_vel_last = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
-        self._last_gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
-        self._last_last_gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
 
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -567,10 +565,7 @@ class BeetleEnv(DirectRLEnv):
         root_lin_vel_b = self._robot.data.root_lin_vel_b
         root_ang_vel_b = self._robot.data.root_ang_vel_b
         projected_gravity_b = self._robot.data.projected_gravity_b
-        gimbal_pos = self._last_gimbal_pos
-
-        self._last_last_gimbal_pos = self._last_gimbal_pos
-        self._last_gimbal_pos = self._robot.data.joint_pos[:, self._gimbal_ids[0]]
+        gimbal_pos = self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos
 
         if self.cfg.add_noise:
             if "lin_vel" in self.noiseModel.params:
@@ -674,16 +669,14 @@ class BeetleEnv(DirectRLEnv):
         self._angle_error = rot_err
 
         lin_vel_norm = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=1)
-        # lin_vel_over = torch.clamp(lin_vel_norm - self.cfg.lin_vel_th, min=0.0)
-        # lin_vel = torch.square(lin_vel_over)
-        lin_vel_norm = torch.clamp(lin_vel_norm, max=10.0)
-        lin_vel = torch.square(torch.exp(0.6 * lin_vel_norm) - 1.0)
+        lin_vel_over = torch.clamp(lin_vel_norm - self.cfg.lin_vel_th, min=0.0)
+        lin_vel = torch.square(lin_vel_over)
+        # lin_vel = torch.square(torch.exp(0.6 * lin_vel_norm) - 1.0)
 
         ang_vel_norm = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=1)
-        # ang_vel_over = torch.clamp(ang_vel_norm - self.cfg.ang_vel_th, min=0.0)
-        # ang_vel = torch.square(ang_vel_over)
-        ang_vel_norm = torch.clamp(ang_vel_norm, max=10.0)
-        ang_vel = torch.square(torch.exp(0.4 * ang_vel_norm) - 1.0)
+        ang_vel_over = torch.clamp(ang_vel_norm - self.cfg.ang_vel_th, min=0.0)
+        ang_vel = torch.square(ang_vel_over)
+        # ang_vel = torch.square(torch.exp(0.4 * ang_vel_norm) - 1.0)
 
         lin_vel_static = torch.square(torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=1))
         ang_vel_static = torch.square(torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=1))
