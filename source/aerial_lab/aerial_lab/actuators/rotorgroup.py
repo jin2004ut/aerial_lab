@@ -420,7 +420,7 @@ if __name__ == "__main__":
     time_axis = torch.arange(steps, device=group.device) * cfg["dt"]
 
     for step in range(steps):
-        foc_cmd = torch.full((group.num_envs, 4), 80.0, device=group.device) + 50.0 * math.sin(2 * step * cfg["dt"])
+        foc_cmd = torch.full((group.num_envs, 4), 0.5, device=group.device) + 1.0 * math.sin(2 * step * cfg["dt"])
         forces, torques = group.forward(foc_cmd)
         cmd_history.append(foc_cmd[target_env, target_rotor].item())
         actual_vel = group.vel[target_env, target_rotor].item()
@@ -431,18 +431,38 @@ if __name__ == "__main__":
         #     f"vel_val={actual_vel:.2f}, foc_val={forces[target_env, target_rotor, 2]:.2f}"
         # )
 
+    steps2 = int(sim_duration / (cfg["dt"] / 2.0))
+    time_2axis = torch.arange(steps2, device=group.device) * (cfg["dt"] / 2.0)
+    foc_2history = []
+    cmd_2history = []
+    for step in range(steps2):
+        foc_cmd = torch.full((group.num_envs, 4), 0.5, device=group.device) + 1.0 * math.sin(
+            2 * step * (cfg["dt"] / 2.0)
+        )
+        forces, torques = group.forward(foc_cmd)
+        cmd_2history.append(foc_cmd[target_env, target_rotor].item())
+        actual_vel = group.vel[target_env, target_rotor].item()
+        foc_2history.append(forces[target_env, target_rotor, 2].item())
+        # print(
+        #     f"Step {step}: Time {time_2axis[step]:.2f}s foc_cmd={foc_cmd[target_env, target_rotor]:.2f}, "
+        #     f"vel_val={actual_vel:.2f}, foc_val={forces[target_env, target_rotor, 2]:.2f}"
+        # )
+
     print("foc_history:", len(foc_history))
     print("cmd_history:", len(cmd_history))
     print("vel_history:", len(vel_history))
 
-    # plt.figure()
-    # plt.plot(time_axis.cpu().numpy(), cmd_history, label="foc_cmd [0,0]")
+    plt.figure()
+    plt.plot(time_axis.cpu().numpy(), cmd_history, label="foc_cmd [0,0]")
     # plt.plot(time_axis.cpu().numpy(), vel_history, label="vel_val [0,0]")
-    # plt.plot(time_axis.cpu().numpy(), foc_history, label="foc_val [0,0]")
-    # plt.xlabel("Time [s]")
-    # plt.ylabel("Rotor speed")
-    # plt.title("Rotor (env 0, rotor 0) velocity response")
-    # plt.legend()
-    # plt.tight_layout()
-    # plt.show()
+    plt.plot(time_axis.cpu().numpy(), foc_history, label="foc_val [0,0]")
+    plt.plot(time_2axis.cpu().numpy(), cmd_2history, "--", label="foc_cmd 2x")
+    plt.plot(time_2axis.cpu().numpy(), foc_2history, "--", label="foc_val 2x")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Rotor speed")
+    plt.title("Rotor (env 0, rotor 0) velocity response")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
     # close sim app

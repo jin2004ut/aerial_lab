@@ -544,12 +544,14 @@ class BeetleEnv(DirectRLEnv):
         #################################################
 
     def _apply_action(self) -> None:
-        self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
-        self._robot.set_external_force_and_torque(
-            forces=self._target_thrust_force,
-            torques=self._target_rotor_torque,
-            body_ids=self._thrust_ids[0],
-        )
+        """Apply the action to the robot. Every dt step"""
+        if self.common_step_counter > 50:
+            self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
+            self._robot.set_external_force_and_torque(
+                forces=self._target_thrust_force,
+                torques=self._target_rotor_torque,
+                body_ids=self._thrust_ids[0],
+            )
 
         # env_ids = 1
         # if self.common_step_counter % 200 == 0:
@@ -615,6 +617,8 @@ class BeetleEnv(DirectRLEnv):
         # print("IMU Link   Prj Gra (body frame): ", imu_gravity_b[0])
         # print("Root       Prj Gra (body frame): ", self._robot.data.projected_gravity_b[0])
         # print("IMU Sensor Prj Gra (body frame): ", self._imu_sensor.data.projected_gravity_b[0])
+
+        # angular_error = self._angle_error
 
         obs = torch.cat(
             (
@@ -823,7 +827,7 @@ class BeetleEnv(DirectRLEnv):
         # print(self._contact_sensor.data.force_matrix_w.squeeze(1).squeeze(1))
         # print(self._contact_sensor.data.net_forces_w.squeeze(1))
         # # # DEBUG
-        # died = torch.zeros_like(time_out, dtype=torch.bool)
+        died = torch.zeros_like(time_out, dtype=torch.bool)
         return died, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
@@ -1015,16 +1019,31 @@ class BeetleEnv(DirectRLEnv):
         default_root_state = self._robot.data.default_root_state[env_ids]
         default_root_state[:, :3] += self._terrain.env_origins[env_ids]
 
-        init_quat = samlpeUniformQuatwithTilt(torch.tensor(math.pi * 0.5), len(env_ids)).to(self.device)
-        default_root_state[:, 3:7] = init_quat
-        # Linear velocity
-        default_root_state[:, 7:10] = (
-            torch.empty_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
+        # init_quat = samlpeUniformQuatwithTilt(torch.tensor(math.pi * 0.5), len(env_ids)).to(self.device)
+        # default_root_state[:, 3:7] = init_quat
+        # # Linear velocity
+        # default_root_state[:, 7:10] = (
+        #     torch.empty_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
+        # )
+        # # Angular velocity
+        # default_root_state[:, 10:13] = (
+        #     torch.empty_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
+        # )
+
+        self._desired_zyx_euler_w = torch.zeros_like(self._desired_zyx_euler_w)
+        self._desired_zyx_euler_w[env_ids, 0] = torch.pi * 0.2
+        # self._desired_zyx_euler_w[env_ids, 2] = torch.pi * 0.5
+        self._desired_quat_w[env_ids] = quat_from_euler_xyz(
+            self._desired_zyx_euler_w[env_ids, 0],
+            self._desired_zyx_euler_w[env_ids, 1],
+            self._desired_zyx_euler_w[env_ids, 2],
         )
-        # Angular velocity
-        default_root_state[:, 10:13] = (
-            torch.empty_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
-        )
+        self._desired_pos_w[env_ids, :3] = torch.zeros_like(self._desired_pos_w[env_ids, :3])
+        self._desired_pos_w[env_ids, :3] += self._terrain.env_origins[env_ids]
+        # self._desired_pos_w[env_ids, 0] += 0.5
+        self._desired_pos_w[env_ids, 2] = 0.6
+        default_root_state[:, 2] = 0.1
+
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
