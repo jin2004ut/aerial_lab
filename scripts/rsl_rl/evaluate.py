@@ -92,6 +92,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     task_name = args_cli.task.split(":")[-1]
     train_task_name = task_name.replace("-Play", "")
 
+    env_cfg.debug_mode = True
     # override configurations with non-hydra CLI arguments
     agent_cfg: RslRlBaseRunnerCfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
@@ -194,16 +195,16 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # env stepping
             obs, _, _, _ = env.step(actions)
 
-            obs_np = obs[0]["policy"].cpu().numpy()
-            obs_39 = np.concatenate([
-                obs_np[:12],  # lin_vel(3) + ang_vel(3) + gravity(3) + goal_pos(3)
-                np.zeros(3, dtype=np.float32),  # placeholder for angular_error
-                obs_np[12:],  # gimbal(4) + root_rot(6) + goal_rot(6) + last_action(8)
-            ])
-            actions_np = actions[0].cpu().numpy()
-            plot_logger.log(obs_39, actions_np)
-            if timestep == 200:
-                plot_logger.save_to_csv()
+            # obs_np = obs[0]["policy"].cpu().numpy()
+            # obs_39 = np.concatenate([
+            #     obs_np[:12],  # lin_vel(3) + ang_vel(3) + gravity(3) + goal_pos(3)
+            #     np.zeros(3, dtype=np.float32),  # placeholder for angular_error
+            #     obs_np[12:],  # gimbal(4) + root_rot(6) + goal_rot(6) + last_action(8)
+            # ])
+            # actions_np = actions[0].cpu().numpy()
+            # plot_logger.log(obs_39, actions_np)
+            # if timestep == 200:
+            #     plot_logger.save_to_csv()
 
         if args_cli.video:
             # Exit the play loop after recording one video
