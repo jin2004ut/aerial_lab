@@ -84,7 +84,7 @@ Aerial_Lab
 |   12   | Aerial-Velocity-Rough-Unitree-Go1-v0 | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.go1.rough_env_cfg:UnitreeGo1RoughEnvCfg             |
 
 ### Dependence
-1. [Isaac Sim](https://isaac-sim.github.io/IsaacLab/release/2.2.0/source/setup/installation/index.html) `5.0.0`
+1. [Isaac Sim](https://isaac-sim.github.io/IsaacLab/release/v2.2.1/source/setup/installation/index.html) `5.0.0`
 2. [Isaac Lab](https://github.com/isaac-sim/IsaacLab) `2.2.1`
 3. [onnxruntime]`onnxruntime-1.16.3-cp38` for `{robot}_deploy.py`
 
@@ -103,7 +103,7 @@ Aerial_Lab
 Older version nvidia-driver cannot support high version cuda. It is recommended to install your gpu driber more than `570`
 
 ### Isaac Lab
-Install Isaac Lab by following the [installation guide : release 2.2.0](https://isaac-sim.github.io/IsaacLab/release/2.2.0/source/setup/installation/index.html).
+Install Isaac Lab by following the [installation guide : release 2.2.1](https://isaac-sim.github.io/IsaacLab/release/v2.2.1/source/setup/installation/index.html).
 We recommend using the **conda or uv installation** as it simplifies calling Python scripts from the terminal.
 The detailed installation process are as follows:
 
@@ -126,6 +126,7 @@ The detailed installation process are as follows:
 - Installing Isaac Lab
     ```bash
     git clone https://github.com/isaac-sim/IsaacLab.git
+    cd IsaacLab
     git checkout v2.2.1
     sudo apt install cmake build-essential
     ./isaaclab.sh --install rl_games rsl_rl sb3 skrl robomimic # rl libraries
