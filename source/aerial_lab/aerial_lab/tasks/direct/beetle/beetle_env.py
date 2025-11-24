@@ -129,9 +129,9 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # env
     sim_dt = 1 / 200.0
     decimation = 4
-    evaluate_mode = False
-    add_noise = False
-    add_randomization = False
+    evaluate_mode = True
+    add_noise = True
+    add_randomization = True
     episode_length_s = 15.0
     max_curricular_steps = 8000.0 * 24  # num_steps_per_env * max_iterations
     # - spaces definition
@@ -234,14 +234,14 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             "type": "uniform",
             "dim": 3,
             "mean": 0.0,
-            "std": 0.02,
+            "std": 0.005,
             "clip": 0.3,
         },
         "ang_vel": {
             "type": "uniform",
             "dim": 3,
             "mean": 0.0,
-            "std": 0.05,
+            "std": 0.01,
             "clip": 0.3,
         },
         # "gravity": {
@@ -255,7 +255,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             "type": "uniform",
             "dim": gimbal_num,
             "mean": 0.0,
-            "std": math.pi * (2.0 / 180.0),
+            "std": math.pi * (1.0 / 180.0),
             "clip": 0.1,
         },
     }

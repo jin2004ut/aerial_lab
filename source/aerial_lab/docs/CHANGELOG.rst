@@ -19,4 +19,5 @@ TODO
 [ ] Add RotorActuatorCfg for rotor with propeller dynamics
 [x] Add `actuators/rotorgroup` as rotor actuator
 [x] Add `utility/noisemodel` for noise simulation
-[ ] Add `event` for random disturbance simulation
+[x] Add `event` for random disturbance simulation
+[ ] Update IsaacLab from `47780cf02dae94410cfed81706c8c859eeeacd76` to `v2.2.1`
