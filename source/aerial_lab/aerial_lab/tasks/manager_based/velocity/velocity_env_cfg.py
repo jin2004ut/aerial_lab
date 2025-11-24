@@ -11,7 +11,6 @@ import math
 import sys
 from dataclasses import MISSING
 
-import aerial_lab.tasks.manager_based.velocity.mdp as mdp
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
@@ -28,6 +27,8 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+
+import aerial_lab.tasks.manager_based.velocity.mdp as mdp
 
 ##
 # Pre-defined configs

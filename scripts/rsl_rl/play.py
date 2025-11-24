@@ -56,7 +56,6 @@ simulation_app = app_launcher.app
 import os
 import time
 
-import aerial_lab.tasks  # noqa: F401
 import gymnasium as gym
 import isaaclab_tasks  # noqa: F401
 import torch
@@ -79,6 +78,8 @@ from isaaclab_rl.rsl_rl import (
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+
+import aerial_lab.tasks  # noqa: F401
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)

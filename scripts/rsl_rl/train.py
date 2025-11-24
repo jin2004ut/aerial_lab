@@ -75,7 +75,6 @@ if version.parse(installed_version) < version.parse(RSL_RL_VERSION):
 import os
 from datetime import datetime
 
-import aerial_lab.tasks  # noqa: F401
 import gymnasium as gym
 import isaaclab_tasks  # noqa: F401
 import omni
@@ -93,6 +92,8 @@ from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+
+import aerial_lab.tasks  # noqa: F401
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True

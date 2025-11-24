@@ -127,7 +127,7 @@ The detailed installation process are as follows:
     ```bash
     git clone https://github.com/isaac-sim/IsaacLab.git
     cd IsaacLab
-    git checkout v2.2.1
+    git checkout -b aeriallab 47780cf02dae94410cfed81706c8c859eeeacd76
     sudo apt install cmake build-essential
     ./isaaclab.sh --install rl_games rsl_rl sb3 skrl robomimic # rl libraries
     # verifying Isaac Lab, it may consume a long time in first launch, also encounter `force quite`, just wait

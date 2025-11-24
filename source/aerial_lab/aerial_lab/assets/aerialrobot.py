@@ -8,11 +8,11 @@
 from __future__ import annotations
 
 import isaaclab.sim as sim_utils
+from isaaclab.actuators import DCMotorCfg, DelayedPDActuatorCfg, ImplicitActuatorCfg
+from isaaclab.assets import ArticulationCfg
 
 # from aerial_lab.actuators import RotorActuatorCfg
 from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
-from isaaclab.actuators import DCMotorCfg, DelayedPDActuatorCfg, ImplicitActuatorCfg
-from isaaclab.assets import ArticulationCfg
 
 ##
 # Configuration

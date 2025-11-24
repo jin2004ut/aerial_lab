@@ -1,10 +1,11 @@
 # Copyright (c) 2024-2025 Ziqi Fan
 # SPDX-License-Identifier: Apache-2.0
 
+from isaaclab.utils import configclass
+
 from aerial_lab.tasks.manager_based.velocity.velocity_env_cfg import (
     LocomotionVelocityRoughEnvCfg,
 )
-from isaaclab.utils import configclass
 
 ##
 # Pre-defined configs

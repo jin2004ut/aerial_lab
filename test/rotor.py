@@ -7,6 +7,7 @@ import math
 
 import matplotlib.pyplot as plt
 import torch
+
 from aerial_lab.actuators.rotor import Rotor
 from aerial_lab.actuators.rotorgroup import RotorGroup
 

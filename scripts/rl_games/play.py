@@ -59,7 +59,6 @@ import os
 import random
 import time
 
-import aerial_lab.tasks  # noqa: F401
 import gymnasium as gym
 import isaaclab_tasks  # noqa: F401
 import torch
@@ -79,6 +78,8 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 from rl_games.common import env_configurations, vecenv
 from rl_games.common.player import BasePlayer
 from rl_games.torch_runner import Runner
+
+import aerial_lab.tasks  # noqa: F401
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)

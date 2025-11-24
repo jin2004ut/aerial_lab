@@ -57,7 +57,6 @@ import math
 import os
 import time
 
-import aerial_lab.tasks  # noqa: F401
 import gymnasium as gym
 import isaaclab_tasks  # noqa: F401
 import numpy as np
@@ -81,6 +80,8 @@ from isaaclab_rl.rsl_rl import (
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+
+import aerial_lab.tasks  # noqa: F401
 
 from aerial_lab.utility.plotLogger import ObservationLogger  # isort: skip
 

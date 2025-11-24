@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import isaaclab.sim as sim_utils
-from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
 from isaaclab.actuators import DCMotorCfg
 from isaaclab.assets.articulation import ArticulationCfg
+
+from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
 
 DEEPROBOTICS_LITE3_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(

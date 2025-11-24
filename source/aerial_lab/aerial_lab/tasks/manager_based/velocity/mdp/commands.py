@@ -6,10 +6,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-import aerial_lab.tasks.manager_based.velocity.mdp as mdp
 import torch
 from isaaclab.managers import CommandTerm, CommandTermCfg
 from isaaclab.utils import configclass
+
+import aerial_lab.tasks.manager_based.velocity.mdp as mdp
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv

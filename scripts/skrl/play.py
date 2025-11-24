@@ -97,7 +97,6 @@ if args_cli.ml_framework.startswith("torch"):
 elif args_cli.ml_framework.startswith("jax"):
     from skrl.utils.runner.jax import Runner
 
-import aerial_lab.tasks  # noqa: F401
 import isaaclab_tasks  # noqa: F401
 from isaaclab.envs import (
     DirectMARLEnv,
@@ -111,6 +110,8 @@ from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkp
 from isaaclab_rl.skrl import SkrlVecEnvWrapper
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
+
+import aerial_lab.tasks  # noqa: F401
 
 # config shortcuts
 if args_cli.agent is None:
