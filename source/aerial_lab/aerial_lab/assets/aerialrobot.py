@@ -77,7 +77,7 @@ BEETLE_CFG = ArticulationCfg(
         self_collision=False,
         replace_cylinders_with_capsules=False,
         # TODO: fix the base_link.dae visual mesh
-        asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle/beetle.urdf",
+        asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle_hyper/beetle_hyper.urdf",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -95,17 +95,17 @@ BEETLE_CFG = ArticulationCfg(
             stabilization_threshold=0.001,
         ),
         # TODO: change joint driver according to the real robot
-        # joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
-        #     gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
-        # ),
         joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
-            gains={
-                "rotor.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
-                "gimbal.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
-            },
-            target_type={"rotor.*": "velocity", "gimbal.*": "position"},
-            drive_type={"rotor.*": "force", "gimbal.*": "force"},
+            gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
         ),
+        # joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
+        #     gains={
+        #         "rotor.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+        #         "gimbal.*": sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+        #     },
+        #     target_type={"rotor.*": "velocity", "gimbal.*": "position"},
+        #     drive_type={"rotor.*": "force", "gimbal.*": "force"},
+        # ),
         copy_from_source=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(

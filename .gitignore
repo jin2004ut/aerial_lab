@@ -18,6 +18,7 @@
 .DS_Store
 **/*.egg-info/
 **/__pycache__/
+scripts/rsl_rl/__pycache__
 **/.pytest_cache/
 **/*.pyc
 **/*.pb

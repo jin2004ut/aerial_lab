@@ -129,9 +129,9 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # env
     sim_dt = 1 / 200.0
     decimation = 4
-    evaluate_mode = True
-    add_noise = True
-    add_randomization = True
+    evaluate_mode = False
+    add_noise = False
+    add_randomization = False
     episode_length_s = 15.0
     max_curricular_steps = 8000.0 * 24  # num_steps_per_env * max_iterations
     # - spaces definition
@@ -192,7 +192,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     ang_vel_static_reward_scale = -0.0
     # reach_lin_vel_reward_scale = -0.05
     # reach_ang_vel_reward_scale = -0.1
-    thrust_power_reward_scale = -2.0e-6  # -1.0e-4
+    thrust_power_reward_scale = -2.0e-5  # -1.0e-4
     # goal_orientation_reward_scale = -0.001
     distance_to_goal_reward_scale = -1.0
     # quat_error_to_goal_reward_scale = -6.0
@@ -208,7 +208,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # smoothing reward scales
     gimbal_action_rate_reward_scale = 0.0  # -1.0e-3
     thrust_action_rate_reward_scale = 0.0  # -1.0e-4
-    gimbal_acc_reward_scale = 0.0  # -1.5e-7
+    gimbal_acc_reward_scale = -1.5e-7  # -1.5e-7
     gimbal_limit_reward_scale = 0.0  # -0.01
     gimbal_limit_scale = math.pi * 0.45
     thrust_limit_reward_scale = 0.0  # -0.01
@@ -305,7 +305,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     robot_cfg: ArticulationCfg = BEETLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=8192, env_spacing=4.0, replicate_physics=True)
 
     contact_sensor: ContactSensorCfg = ContactSensorCfg(
         prim_path="/World/envs/env_.*/Robot/base_link",  # Bind to the robot root link
