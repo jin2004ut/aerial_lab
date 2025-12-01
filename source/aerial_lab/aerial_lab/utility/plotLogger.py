@@ -143,9 +143,9 @@ class ObservationLogger:
         self.action_data.append(action.copy())
 
         # Check if it's time to plot
-        if current_time - self.last_plot_time >= self.plot_interval:
-            self.plot_and_save()
-            self.last_plot_time = current_time
+        # if current_time - self.last_plot_time >= self.plot_interval:
+        #     self.plot_and_save()
+        #     self.last_plot_time = current_time
 
     def save_to_csv(self, filename: str = None) -> Path:
         """
@@ -282,9 +282,14 @@ class ObservationLogger:
                 mean_dt = np.mean(np.diff(t)) if len(t) > 1 else 0
                 freq = 1.0 / mean_dt if mean_dt > 0 else 0
                 info_text = (
-                    f"Samples: {len(t)}\nDuration: {t[-1]:.2f}s\nMean dt: {mean_dt*1000:.2f}ms\nFreq: {freq:.1f}Hz"
+                    f"Samples: {len(t)}, Duration: {t[-1]:.2f}s\nMean dt: {mean_dt*1000:.2f}ms, Freq:"
+                    f" {freq:.1f}Hz\nMean vx: {np.mean(abs(obs[:,0])):.4f}, vy: {np.mean(abs(obs[:,1])):.4f}, vz:"
+                    f" {np.mean(abs(obs[:,2])):.4f} m/s\nStd  vx: {np.std(obs[:,0]):.4f}, vy: {np.std(obs[:,1]):.4f},"
+                    f" vz: {np.std(obs[:,2]):.4f} m/s\nMean wx: {np.mean(abs(obs[:,3])):.4f}, wy:"
+                    f" {np.mean(abs(obs[:,4])):.4f}, wz: {np.mean(abs(obs[:,5])):.4f} rad/s\nStd  wx:"
+                    f" {np.std(obs[:,3]):.4f}, wy: {np.std(obs[:,4]):.4f}, wz: {np.std(obs[:,5]):.4f} rad/s"
                 )
-                ax.text(0.1, 0.5, info_text, fontsize=12, family="monospace", verticalalignment="center")
+                ax.text(-0.1, 0.5, info_text, fontsize=12, family="monospace", verticalalignment="center")
             else:
                 # Plot data
                 data = actions if config.get("data") == "action" else obs
@@ -322,6 +327,120 @@ class ObservationLogger:
         print(f"Plot saved: {filename}")
         self.plot_counter += 1
 
+    def save_figure(self, saveDir: str, figName: str):
+        """Save a given matplotlib figure to the save directory."""
+        if len(self.timestamps) == 0:
+            print("⚠ No data to save (timestamps empty). Skipping save_figure().")
+            return
+        # Convert to numpy arrays
+        t = np.array(self.timestamps)
+        t = t - t[0]
+        obs = np.array(self.obs_data)
+        actions = np.array(self.action_data)
+
+        # Create figure with subplots
+        fig = plt.figure(figsize=(20, 12))
+        gs = GridSpec(4, 3, figure=fig, hspace=0.3, wspace=0.3)
+
+        # Define what to plot
+        plot_configs = [
+            # Row 1: Velocities
+            {"idx": slice(0, 3), "title": "Linear Velocity (Body Frame)", "ylabel": "m/s", "labels": ["x", "y", "z"]},
+            {
+                "idx": slice(3, 6),
+                "title": "Angular Velocity (Body Frame)",
+                "ylabel": "rad/s",
+                "labels": ["x", "y", "z"],
+            },
+            {"idx": slice(6, 9), "title": "Gravity Projection", "ylabel": "unit", "labels": ["x", "y", "z"]},
+            # Row 2: Goal and Errors
+            {"idx": slice(9, 12), "title": "Goal Position (Body Frame)", "ylabel": "m", "labels": ["x", "y", "z"]},
+            {"idx": slice(12, 15), "title": "Angular Error", "ylabel": "rad", "labels": ["x", "y", "z"]},
+            {"idx": slice(15, 19), "title": "Gimbal DOF", "ylabel": "rad", "labels": ["0", "1", "2", "3"]},
+            # Row 3: Rotation vectors
+            {
+                "idx": slice(19, 25),
+                "title": "Root Rotation Vector",
+                "ylabel": "unit",
+                "labels": ["0", "1", "2", "3", "4", "5"],
+            },
+            {
+                "idx": slice(25, 31),
+                "title": "Goal Rotation Vector",
+                "ylabel": "unit",
+                "labels": ["0", "1", "2", "3", "4", "5"],
+            },
+            {
+                "idx": slice(31, 39),
+                "title": "Last Action (in obs)",
+                "ylabel": "unit",
+                "labels": ["0", "1", "2", "3", "4", "5", "6", "7"],
+            },
+            # Row 4: Actions
+            {
+                "idx": slice(0, 4),
+                "title": "Target Gimbal",
+                "ylabel": "rad",
+                "labels": ["0", "1", "2", "3"],
+                "data": "action",
+            },
+            {
+                "idx": slice(4, 8),
+                "title": "Target Thrust",
+                "ylabel": "N",
+                "labels": ["0", "1", "2", "3"],
+                "data": "action",
+            },
+            {"idx": None, "title": "Performance", "ylabel": "", "labels": []},  # Placeholder for text
+        ]
+
+        for i, config in enumerate(plot_configs):
+            ax = fig.add_subplot(gs[i // 3, i % 3])
+
+            if config["idx"] is None:
+                # Performance metrics text
+                ax.axis("off")
+                mean_dt = np.mean(np.diff(t)) if len(t) > 1 else 0
+                freq = 1.0 / mean_dt if mean_dt > 0 else 0
+                info_text = (
+                    f"Samples: {len(t)}, Duration: {t[-1]:.2f}s\nMean dt: {mean_dt*1000:.2f}ms, Freq:"
+                    f" {freq:.1f}Hz\nMean vx: {np.mean(abs(obs[:,0])):.4f}, vy: {np.mean(abs(obs[:,1])):.4f}, vz:"
+                    f" {np.mean(abs(obs[:,2])):.4f} m/s\nStd  vx: {np.std(obs[:,0]):.4f}, vy: {np.std(obs[:,1]):.4f},"
+                    f" vz: {np.std(obs[:,2]):.4f} m/s\nMean wx: {np.mean(abs(obs[:,3])):.4f}, wy:"
+                    f" {np.mean(abs(obs[:,4])):.4f}, wz: {np.mean(abs(obs[:,5])):.4f} rad/s\nStd  wx:"
+                    f" {np.std(obs[:,3]):.4f}, wy: {np.std(obs[:,4]):.4f}, wz: {np.std(obs[:,5]):.4f} rad/s"
+                )
+                ax.text(0.1, 0.5, info_text, fontsize=12, family="monospace", verticalalignment="center")
+            else:
+                # Plot data
+                data = actions if config.get("data") == "action" else obs
+                indices = config["idx"]
+
+                for j, label in enumerate(config["labels"]):
+                    ax.plot(t, data[:, indices.start + j], label=label, linewidth=1.5)
+
+                ax.set_title(config["title"], fontsize=10, fontweight="bold")
+                ax.set_xlabel("Time (s)", fontsize=9)
+                ax.set_ylabel(config["ylabel"], fontsize=9)
+                ax.legend(loc="upper right", fontsize=8)
+                ax.grid(True, alpha=0.3)
+                ax.tick_params(labelsize=8)
+
+        # Add overall title
+        fig.suptitle(
+            f"Observation & Action Data - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            fontsize=14,
+            fontweight="bold",
+        )
+        save_path = Path(saveDir) / figName
+        try:
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
+            print(f"✓ Figure saved: {save_path}")
+        except Exception as e:
+            print(f"✗ Failed to save figure {figName}: {e}")
+        finally:
+            plt.close()
+
     def save_final_plot(self):
         """Save final plot when shutting down."""
         self.plot_and_save()
@@ -334,10 +453,10 @@ class ObservationLogger:
         print("=" * 30)
 
         # Save final plot
-        self.save_final_plot()
+        # self.save_final_plot()
 
         # Save data to CSV
-        self.save_to_csv()
+        # self.save_to_csv()
 
         print("=" * 30)
         print(f"✓ Shutdown complete. Files saved to: {self.save_dir}")

@@ -14,6 +14,10 @@ from isaaclab.app import AppLauncher
 
 # local imports
 import cli_args  # isort: skip
+from pathlib import Path  # isort: skip
+
+# #########################################################
+# python scripts/rsl_rl/evaluate.py --task Beetle-Pose-Play-v0 --video --video_length=500
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Train an RL agent with RSL-RL.")
@@ -92,7 +96,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     task_name = args_cli.task.split(":")[-1]
     train_task_name = task_name.replace("-Play", "")
 
-    env_cfg.debug_mode = True
+    env_cfg.evaluate_mode = True
+    MaxSteps = int(env_cfg.episode_length_s / env_cfg.sim_dt / env_cfg.decimation) * 2
     # override configurations with non-hydra CLI arguments
     agent_cfg: RslRlBaseRunnerCfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
@@ -131,7 +136,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # wrap for video recording
     if args_cli.video:
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
+            "video_folder": os.path.join(log_dir, "videos"),
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
@@ -175,8 +180,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # export policy to onnx/jit
     export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
-    export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
-    export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
+    stem = Path(resume_path).stem  # "model_10000"
+    run_id = Path(resume_path).parent.name
+    ckpt_id = stem.removeprefix("model_")  # "10000"
+    # export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir,
+    #                      filename="policy-" + run_id + "-" + ckpt_id + ".pt")
+    export_policy_as_onnx(
+        policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy-" + run_id + "-" + ckpt_id + ".onnx"
+    )
 
     dt = env.unwrapped.step_dt
     plot_logger = ObservationLogger(save_dir=os.path.join(log_dir, "plots"), max_samples=250, plot_interval=5.0)
@@ -195,30 +206,61 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # env stepping
             obs, _, _, _ = env.step(actions)
 
-            # obs_np = obs[0]["policy"].cpu().numpy()
-            # obs_39 = np.concatenate([
-            #     obs_np[:12],  # lin_vel(3) + ang_vel(3) + gravity(3) + goal_pos(3)
-            #     np.zeros(3, dtype=np.float32),  # placeholder for angular_error
-            #     obs_np[12:],  # gimbal(4) + root_rot(6) + goal_rot(6) + last_action(8)
-            # ])
-            # actions_np = actions[0].cpu().numpy()
-            # plot_logger.log(obs_39, actions_np)
-            # if timestep == 200:
-            #     plot_logger.save_to_csv()
+            obs_np = obs[0]["policy"].cpu().numpy()
+            obs_39 = np.concatenate([
+                obs_np[:12],  # lin_vel(3) + ang_vel(3) + gravity(3) + goal_pos(3)
+                np.zeros(3, dtype=np.float32),  # placeholder for angular_error
+                obs_np[12:],  # gimbal(4) + root_rot(6) + goal_rot(6) + last_action(8)
+            ])
+            actions_np = actions[0].cpu().numpy()
+            plot_logger.log(obs_39, actions_np)
 
         if args_cli.video:
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
+                plot_logger.save_figure(saveDir=export_model_dir, figName=f"obs-{run_id}-{ckpt_id}.png")
+                break
+        else:
+            if timestep == MaxSteps:
+                plot_logger.save_figure(saveDir=export_model_dir, figName=f"obs-{run_id}-{ckpt_id}.png")
                 break
 
         # time delay for real-time evaluation
         sleep_time = dt - (time.time() - start_time)
         if args_cli.real_time and sleep_time > 0:
             time.sleep(sleep_time)
+    # rename recorded video files
+    try:
+        videos_dir = os.path.join(log_dir, "videos")
+        if os.path.isdir(videos_dir):
+            print(f"[INFO] Renaming recorded videos in: {videos_dir}")
+            for fname in os.listdir(videos_dir):
+                if not fname.endswith(".mp4"):
+                    continue
+                src = os.path.join(videos_dir, fname)
+                # rename default recorder file to include run and ckpt id
+                if fname == "rl-video-step-0.mp4":
+                    dst_name = f"video-{run_id}-{ckpt_id}.mp4"
+                else:
+                    continue
+                # else:
+                #     # keep original name but append run/ckpt to avoid collisions
+                #     dst_name = f"{Path(fname).stem}-{run_id}-{ckpt_id}{Path(fname).suffix}"
+                dst = os.path.join(videos_dir, dst_name)
+                # avoid overwriting existing file
+                # if os.path.exists(dst):
+                #     base, ext = os.path.splitext(dst)
+                #     i = 1
+                #     while os.path.exists(f"{base}-{i}{ext}"):
+                #         i += 1
+                #     dst = f"{base}-{i}{ext}"
+                os.rename(src, dst)
+                print(f"Renamed video: {src} -> {dst}")
+    except Exception as e:
+        print(f"[WARN] Failed to rename recorded videos: {e}")
 
     # close the simulator
     env.close()
-    plot_logger.shutdown()
 
 
 if __name__ == "__main__":

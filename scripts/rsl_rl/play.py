@@ -88,6 +88,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     task_name = args_cli.task.split(":")[-1]
     train_task_name = task_name.replace("-Play", "")
 
+    env_cfg.play_mode = True
+    env_cfg.evaluate_mode = False
     # override configurations with non-hydra CLI arguments
     agent_cfg: RslRlBaseRunnerCfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs

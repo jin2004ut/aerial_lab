@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 import torch
-from aerial_lab.utility.math import samlpeUniformQuatwithTilt
+from aerial_lab.utility.utilitymath import samlpeUniformQuatwithTilt
 from isaaclab.utils.math import (
     compute_pose_error,
     matrix_from_euler,

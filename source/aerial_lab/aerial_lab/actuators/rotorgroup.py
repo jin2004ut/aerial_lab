@@ -1,4 +1,6 @@
 # rotor.py
+from collections.abc import Sequence
+
 import torch
 import torch.nn as nn
 
@@ -195,6 +197,12 @@ class RotorGroup(nn.Module):
         torque_thrust_ratio = torch.where(
             self.kf.abs() > 1e-6, self.km / torch.clamp(self.kf, min=1e-6), torch.zeros_like(self.km)
         )
+        if "randomize_ratio" in cfg:
+            randomize_ratio = self.cfg["randomize_ratio"]
+            torque_thrust_ratio = torque_thrust_ratio + torque_thrust_ratio * torch.empty_like(
+                torque_thrust_ratio
+            ).uniform_(-randomize_ratio, randomize_ratio)
+            print("RotorGroup randomize torque_thrust_ratio on init.")
         self.register_buffer("torque_thrust_ratio", torque_thrust_ratio)
 
         # # # #
@@ -217,7 +225,7 @@ class RotorGroup(nn.Module):
 
         self.requires_grad_(False)
 
-    def reset(self, env_ids: torch.Tensor | None = None):
+    def reset(self, env_ids: torch.Tensor | Sequence[int] | None = None):
         """Reset the rotor group.
 
         This method resets the state of the rotors for the specified environments.
@@ -232,6 +240,16 @@ class RotorGroup(nn.Module):
         self.vel_dot[env_ids, :] = 0.0
         self.foc[env_ids, :] = 0.0
         self.foc_dot[env_ids, :] = 0.0
+        if "randomize_ratio" in self.cfg:
+            randomize_ratio = self.cfg["randomize_ratio"]
+            torque_thrust_ratio = torch.where(
+                self.kf[env_ids, :].abs() > 1e-6,
+                self.km[env_ids, :] / torch.clamp(self.kf[env_ids, :], min=1e-6),
+                torch.zeros_like(self.km[env_ids, :]),
+            )
+            self.torque_thrust_ratio[env_ids, :] = torque_thrust_ratio + torque_thrust_ratio * torch.empty_like(
+                torque_thrust_ratio
+            ).uniform_(-randomize_ratio, randomize_ratio)
 
     def _expand_param(self, value, name: str, dtype=torch.float32) -> torch.Tensor:
         tensor = torch.as_tensor(value, device=self.device, dtype=dtype)
@@ -349,6 +367,7 @@ if __name__ == "__main__":
         "mode": "vel",
         "thrust_coeff": 1,
         "torque_coeff": 0.1,
+        "randomize_ratio": 0.05,
         "max_vel": 200.0,
         "max_foc": 6.0,
         "vel_wn": 1.0,

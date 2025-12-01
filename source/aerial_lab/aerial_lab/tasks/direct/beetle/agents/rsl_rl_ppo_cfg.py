@@ -15,7 +15,7 @@ from isaaclab_rl.rsl_rl import (
 class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 10001
-    save_interval = 1000
+    save_interval = 500
     experiment_name = "beetle_hyper"
     obs_groups = {
         "policy": ["policy"],

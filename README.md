@@ -72,11 +72,11 @@ Aerial_Lab
 |--------|-------------------------|--------------------|-----------------------|
 |   1    | Aerial-Template-Direct-v0            | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env:AerialLabEnv               | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env_cfg:AerialLabEnvCfg               |
 |   2    | Aerial-Template-Marl-Direct-v0       | aerial_lab.tasks.direct.aerial_lab_marl.aerial_lab_marl_env:AerialLabMarlEnv | aerial_lab.tasks.direct.aerial_lab_marl.aerial_lab_marl_env_cfg:AerialLabMarlEnvCfg |
-|   3    | Aerial-Beetle-Direct-Pose-v0         | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnv                          | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnvCfg                              |
-|   4    | Aerial-Beetle-Direct-Pose-DEBUG-v0   | aerial_lab.tasks.direct.beetle.beetle_env_debug:BeetleEnv                    | aerial_lab.tasks.direct.beetle.beetle_env_debug:BeetleEnvCfg                        |
-|   5    | Aerial-Dragon-Direct-v0              | aerial_lab.tasks.direct.dragon.dragon_env:DragonEnv                          | aerial_lab.tasks.direct.dragon.dragon_env:DragonEnvCfg                              |
-|   6    | Aerial-Quadcopter-Direct-v0          | aerial_lab.tasks.direct.quadcopter.quadcopter_env:QuadcopterEnv              | aerial_lab.tasks.direct.quadcopter.quadcopter_env:QuadcopterEnvCfg                  |
-|   7    | Aerial-Spidar-Direct-v0              | aerial_lab.tasks.direct.spidar.spidar_env:SpidarEnv                          | aerial_lab.tasks.direct.spidar.spidar_env:SpidarEnvCfg                              |
+|   3    | Beetle-Direct-Pose-v0         | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnv                          | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnvCfg                              |
+|   4    | Beetle-Direct-Pose-DEBUG-v0   | aerial_lab.tasks.direct.beetle.beetle_env_debug:BeetleEnv                    | aerial_lab.tasks.direct.beetle.beetle_env_debug:BeetleEnvCfg                        |
+|   5    | Dragon-Direct-v0              | aerial_lab.tasks.direct.dragon.dragon_env:DragonEnv                          | aerial_lab.tasks.direct.dragon.dragon_env:DragonEnvCfg                              |
+|   6    | Quadcopter-Direct-v0          | aerial_lab.tasks.direct.quadcopter.quadcopter_env:QuadcopterEnv              | aerial_lab.tasks.direct.quadcopter.quadcopter_env:QuadcopterEnvCfg                  |
+|   7    | Spidar-Direct-v0              | aerial_lab.tasks.direct.spidar.spidar_env:SpidarEnv                          | aerial_lab.tasks.direct.spidar.spidar_env:SpidarEnvCfg                              |
 |   8    | Aerial-Velocity-Flat-Unitree-A1-v0   | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.a1.flat_env_cfg:UnitreeA1FlatEnvCfg                  |
 |   9    | Aerial-Velocity-Rough-Unitree-A1-v0  | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.a1.rough_env_cfg:UnitreeA1RoughEnvCfg                |
 |   10   | Aerial-Template-v0                   | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.aerial_lab.aerial_lab_env_cfg:AerialLabEnvCfg        |
@@ -178,6 +178,7 @@ The detailed installation process are as follows:
 ## Training
 
 ### Training specific task
+Start training process w/o video record
 ```bash
 # training with gui (time consuming, unrecommended!)
 python scripts/rsl_rl/train.py --task=Beetle-Direct-Pose-v0
@@ -193,14 +194,21 @@ tensorboard --logdir=logs/rsl_rl/beetle_direct/ --port=6006
 Then, on you web browsers, view `http://localhost:6006`
 
 ### Review training result
-
-Start training process with video record
+Play trained policy w/o video record
 ```bash
 # Play trained policy, (latested training)
 python scripts/rsl_rl/play.py --task=Beetle-Direct-Pose-v0 --num_envs=64
 # Play trained policy with specific checkpoint
 python scripts/rsl_rl/play.py --task=Beetle-Direct-Pose-v0 --checkpoint=logs/rsl_rl/beetle_direct/2025-10-31_13-34-44/model_8000.pt --num_envs=64
 ```
+To facilitate evaluate policy, you can check outcomes in `exported/` and `video/`.
+```bash
+# Evaluate single policy
+python scripts/rsl_rl/evaluate.py --task=Beetle-Pose-v0 --num_envs=4 --device=cpu --video --video_length=500 --checkpoint=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19/model_10000.pt --headless
+# Evaluate policy batch
+python scripts/rsl_rl/evaluate.py --task=Beetle-Pose-v0 --num_envs=4 --device=cpu --video --video_length=500 --run_dir=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19 --headless
+```
+
 
 Switch to log/git/diff
 ```bash
@@ -240,6 +248,7 @@ isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`.
         "urdf-visualizer.packages": {
             "beetle": "${workspaceFolder}/source/aerial_lab/data/Robots/beetle",
             "beetle_omni": "${workspaceFolder}/source/aerial_lab/data/Robots/beetle_omni",
+            "beetle_hyper": "${workspaceFolder}/source/aerial_lab/data/Robots/beetle_hyper",
             "mini_quadrotor": "${workspaceFolder}/source/aerial_lab/data/Robots/mini_quadrotor",
             "spidar": "${workspaceFolder}/source/aerial_lab/data/Robots/spidar",
             "dragon": "${workspaceFolder}/source/aerial_lab/data/Robots/dragon",

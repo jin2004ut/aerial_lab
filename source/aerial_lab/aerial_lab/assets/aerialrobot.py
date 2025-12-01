@@ -157,8 +157,8 @@ BEETLE_CFG = ArticulationCfg(
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
-            min_delay=1,
-            max_delay=3,
+            min_delay=5,
+            max_delay=8,
         ),
     },
 )

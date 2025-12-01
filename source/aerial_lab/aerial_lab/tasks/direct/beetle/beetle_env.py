@@ -31,6 +31,7 @@ from isaaclab.utils.math import (
     matrix_from_quat,
     normalize,
     quat_apply,
+    quat_apply_inverse,
     quat_error_magnitude,
     quat_from_angle_axis,
     quat_from_euler_xyz,
@@ -45,7 +46,7 @@ from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort
 
 from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.utility.noisemodel import NoiseModel  # isort: skip
-from aerial_lab.utility.math import samlpeUniformQuatwithTilt  # isort: skip
+from aerial_lab.utility.utilitymath import samlpeUniformQuatwithTilt  # isort: skip
 
 PUSH_LIN_VEL = 0.3  # m/s
 PUSH_ANG_VEL = 0.3  # rad/s
@@ -110,7 +111,7 @@ class EventCfg:
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity,
         mode="interval",
-        interval_range_s=(10.0, 15.0),
+        interval_range_s=(5.0, 15.0),
         params={
             "velocity_range": {
                 "x": (-PUSH_LIN_VEL, PUSH_LIN_VEL),
@@ -129,8 +130,8 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # env
     sim_dt = 1 / 200.0
     decimation = 4
-    evaluate_mode = True
-    debug_mode = False
+    play_mode = False
+    evaluate_mode = False
     add_noise = True
     add_randomization = True
     episode_length_s = 15.0
@@ -170,7 +171,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             lin_vel = 1.0
 
     class control:
-        body_ang = math.pi / 180.0 * 90.0  # body tilt angle for desired orientation sampling
+        body_ang = math.pi / 180.0 * 75.0  # body tilt angle for desired orientation sampling
         clip_observations = 100.0
         clip_actions = 100.0
         # class control:
@@ -196,9 +197,9 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     ang_vel_static_reward_scale = -0.0
     # reach_lin_vel_reward_scale = -0.05
     # reach_ang_vel_reward_scale = -0.1
-    thrust_power_reward_scale = -2.0e-5  # -1.0e-4
+    thrust_power_reward_scale = -5.0e-4  # -1.0e-4
     # goal_orientation_reward_scale = -0.001
-    distance_to_goal_reward_scale = -1.0
+    distance_to_goal_reward_scale = 0.0
     # quat_error_to_goal_reward_scale = -6.0
     # angular_to_goal_reward_scale = 3.0
     # angular_error_to_goal_reward_scale = -5.0
@@ -216,37 +217,37 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     gimbal_limit_reward_scale = 0.0  # -0.01
     gimbal_limit_scale = math.pi * 0.45
     thrust_limit_reward_scale = 0.0  # -0.01
-    thrust_limit = 22.0
+    thrust_limit = control.thrust_limit * 0.9
 
     # # # # Noise Configuration
     noiseCfg = {
         "root_pos": {
             "type": "uniform",
             "dim": 3,
-            "mean": 0.0,
+            "mean": 0.005,
             "std": 0.005,
             "clip": 0.3,
         },
         "root_quat": {
             "type": "uniform",
             "dim": 3,
-            "mean": 0.0,
+            "mean": math.pi * (0.5 / 180.0),
             "std": math.pi * (1.0 / 180.0),
             "clip": 0.3,
         },
         "lin_vel": {
             "type": "uniform",
             "dim": 3,
-            "mean": 0.0,
+            "mean": 0.005,
             "std": 0.005,
-            "clip": 0.3,
+            "clip": 3.0,
         },
         "ang_vel": {
             "type": "uniform",
             "dim": 3,
-            "mean": 0.0,
-            "std": 0.01,
-            "clip": 0.3,
+            "mean": 0.005,
+            "std": 0.005,
+            "clip": 3.0,
         },
         # "gravity": {
         #     "type": "uniform",
@@ -258,7 +259,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         "dof_pos": {
             "type": "uniform",
             "dim": gimbal_num,
-            "mean": 0.0,
+            "mean": math.pi * (1.0 / 180.0),
             "std": math.pi * (1.0 / 180.0),
             "clip": 0.1,
         },
@@ -270,6 +271,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         "mode": "foc",
         "thrust_coeff": 1.0,
         "torque_coeff": thrust_to_torque_ratio,
+        "randomize_ratio": 0.0,
         "max_vel": 200.0,
         "max_foc": control.thrust_limit,
         "vel_wn": 1.0,
@@ -309,7 +311,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     robot_cfg: ArticulationCfg = BEETLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=8192, env_spacing=4.0, replicate_physics=True)
 
     contact_sensor: ContactSensorCfg = ContactSensorCfg(
         prim_path="/World/envs/env_.*/Robot/base_link",  # Bind to the robot root link
@@ -583,7 +585,7 @@ class BeetleEnv(DirectRLEnv):
 
     def _apply_action(self) -> None:
         """Apply the action to the robot. Every dt step"""
-        if self.cfg.debug_mode:
+        if self.cfg.evaluate_mode:
             if self.common_step_counter < 50:
                 return
         self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
@@ -606,9 +608,9 @@ class BeetleEnv(DirectRLEnv):
     def _get_observations(self) -> dict:
         root_pos_w = self._robot.data.root_pos_w
         root_quat_w = self._robot.data.root_quat_w
-        root_lin_vel_b = self._robot.data.root_lin_vel_b
+        root_lin_vel_w = self._robot.data.root_lin_vel_w
         root_ang_vel_b = self._robot.data.root_ang_vel_b
-        projected_gravity_b = self._robot.data.projected_gravity_b
+        projected_gravity_w = self._robot.data.GRAVITY_VEC_W
         gimbal_pos = self._last_gimbal_pos
 
         self._last_last_gimbal_pos = self._last_gimbal_pos
@@ -616,15 +618,15 @@ class BeetleEnv(DirectRLEnv):
 
         if self.cfg.add_noise:
             if "lin_vel" in self.noiseModel.params:
-                root_lin_vel_b = self.noiseModel.apply(root_lin_vel_b, "lin_vel")
+                root_lin_vel_w = self.noiseModel.apply(root_lin_vel_w, "lin_vel")
             if "ang_vel" in self.noiseModel.params:
                 root_ang_vel_b = self.noiseModel.apply(root_ang_vel_b, "ang_vel")
             if "gravity" in self.noiseModel.params:
                 noise = torch.empty(self.num_envs, 3, device=self.device).uniform_(
                     -self.cfg.noiseCfg["gravity"]["std"], self.cfg.noiseCfg["gravity"]["std"]
                 )
-                projected_gravity_b += noise
-                projected_gravity_b = normalize(projected_gravity_b)
+                projected_gravity_w += noise
+                projected_gravity_w = normalize(projected_gravity_w)
             if "root_pos" in self.noiseModel.params:
                 root_pos_w = self.noiseModel.apply(root_pos_w, "root_pos")
             if "root_quat" in self.noiseModel.params:
@@ -637,6 +639,9 @@ class BeetleEnv(DirectRLEnv):
                 root_quat_w = quat_mul(box_quat, root_quat_w)
             if "dof_pos" in self.noiseModel.params:
                 gimbal_pos = self.noiseModel.apply(gimbal_pos, "dof_pos")
+
+        root_lin_vel_b = quat_apply_inverse(root_quat_w, root_lin_vel_w)
+        projected_gravity_b = quat_apply_inverse(root_quat_w, projected_gravity_w)
 
         goal_pos_b, goal_quat_b = subtract_frame_transforms(
             root_pos_w, root_quat_w, self._desired_pos_w, self._desired_quat_w
@@ -674,6 +679,7 @@ class BeetleEnv(DirectRLEnv):
         clip_obs = self.ctrlCfg.clip_observations
         obs = torch.clamp(obs, -clip_obs, clip_obs)
         states = self._get_states()
+        states = torch.clamp(states, -clip_obs, clip_obs)
         observations = {"policy": obs, "critic": states}
         return observations
 
@@ -732,11 +738,14 @@ class BeetleEnv(DirectRLEnv):
         # distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
         # distance_to_goal_mapped = torch.exp(-2 * distance_to_goal)
         # distance_to_goal_weight = torch.exp(-torch.square(3.0 * distance_to_goal))
-        distance_to_goal_weight = 1 - torch.tanh(distance_to_goal / 0.2)
+        # distance_to_goal_weight = 1 - torch.tanh(distance_to_goal / 0.2)
+        # distance_to_goal_weight = 1 - torch.tanh(distance_to_goal)
+        distance_to_goal_weight = 1 - torch.tanh(0.5 * distance_to_goal)
         thrust_power = torch.sum(torch.square(self._action_thrust_force), dim=1)
 
         angular_to_goal = torch.linalg.norm(self._angle_error, dim=1)
-        angular_to_goal_mapped = (1 - torch.tanh(angular_to_goal)) * (0.1 + distance_to_goal_weight)
+        # angular_to_goal_mapped = (1 - torch.tanh(angular_to_goal)) * (0.05 + distance_to_goal_weight)
+        angular_to_goal_mapped = (1 - torch.tanh(0.5 * angular_to_goal)) * distance_to_goal_weight
         # angular_to_goal_mapped = torch.exp(-2 * angular_to_goal) * distance_to_sgoal_weight
         # angular_to_goal_mapped = (1 - torch.exp(-angular_to_goal / 0.8))
         # angular_error_to_goal_mapped = 1 - torch.exp(-angular_to_goal)
@@ -840,7 +849,7 @@ class BeetleEnv(DirectRLEnv):
         drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1, self._robot.data.root_pos_w[:, 2] > 5.0)
         died = torch.logical_or(crash, drift)
         # # # DEBUG
-        if self.cfg.debug_mode:
+        if self.cfg.evaluate_mode:
             died = torch.zeros_like(time_out, dtype=torch.bool)
         return died, time_out
 
@@ -849,7 +858,7 @@ class BeetleEnv(DirectRLEnv):
             env_ids = self._robot._ALL_INDICES
 
         quat_sample_rate = (
-            (self.common_step_counter + 100 * 24) / self.cfg.max_curricular_steps * 12
+            (self.common_step_counter + 300 * 24) / self.cfg.max_curricular_steps * 12
         )  # start from 0.3, reach 0.8
         pos_sample_rate = (
             (self.common_step_counter + 100 * 24) / self.cfg.max_curricular_steps * 12
@@ -867,14 +876,14 @@ class BeetleEnv(DirectRLEnv):
         quat_sample_rate = max(quat_sample_rate, 0.0)
         pos_sample_rate = max(pos_sample_rate, 0.0)
 
-        if self.cfg.evaluate_mode:
+        if self.cfg.play_mode:
             quat_sample_rate = 1.0
             pos_sample_rate = 1.0
 
         quat_sample_rate = min(quat_sample_rate, 1.0)
         pos_sample_rate = min(pos_sample_rate, 1.0)
         # quat_sample_rate = 1.0
-        pos_sample_rate = 1.0
+        # pos_sample_rate = 1.0
         self._quat_sample_rate = quat_sample_rate
         self._pos_sample_rate = pos_sample_rate
 
@@ -916,6 +925,8 @@ class BeetleEnv(DirectRLEnv):
         self.extras["log"].update(extras)
 
         self._robot.reset(env_ids)
+        self._rotors.reset(env_ids)
+        self.noiseModel.reset(env_ids)
 
         super()._reset_idx(env_ids)
         if len(env_ids) == self.num_envs:
@@ -979,7 +990,7 @@ class BeetleEnv(DirectRLEnv):
         default_root_state = self._robot.data.default_root_state[env_ids]
         default_root_state[:, :3] += self._terrain.env_origins[env_ids]
 
-        if self.cfg.debug_mode:
+        if self.cfg.evaluate_mode:
             self._desired_zyx_euler_w[env_ids] = torch.zeros_like(self._desired_zyx_euler_w[env_ids])
             # self._desired_zyx_euler_w[env_ids, 0] = torch.pi * 0.2
             self._desired_zyx_euler_w[env_ids, 2] = torch.pi * 0.5
