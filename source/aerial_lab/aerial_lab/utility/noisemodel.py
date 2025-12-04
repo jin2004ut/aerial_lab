@@ -1,5 +1,5 @@
-from functools import partial
 from collections.abc import Sequence
+from functools import partial
 
 import torch
 

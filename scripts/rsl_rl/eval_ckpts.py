@@ -23,10 +23,12 @@ def extract_num(s: str):
 
 def find_checkpoints(run_dir: Path):
     pts = [p for p in run_dir.glob("*.pt") if p.is_file()]
+
     # sort by numeric id in filename if present, otherwise lexicographic
     def key(p: Path):
         n = extract_num(p.stem)
         return (0, n) if n is not None else (1, p.name)
+
     return sorted(pts, key=key)
 
 
@@ -67,7 +69,7 @@ def main():
             f"--num_envs={args.num_envs}",
             f"--device={args.device}",
             f"--checkpoint={str(ckpt)}",
-            "--kit_args=--/log/level=error --/log/quiet=1 --/exts/gpu.foundation.plugin/logging=0"
+            "--kit_args=--/log/level=error --/log/quiet=1 --/exts/gpu.foundation.plugin/logging=0",
         ]
         if args.video:
             cmd.append("--video")

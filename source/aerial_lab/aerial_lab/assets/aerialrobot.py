@@ -157,8 +157,8 @@ BEETLE_CFG = ArticulationCfg(
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
-            min_delay=5,
-            max_delay=8,
+            min_delay=1,
+            max_delay=3,
         ),
     },
 )
@@ -172,7 +172,7 @@ BEETLE_OMNI_CFG = ArticulationCfg(
         collision_from_visuals=False,
         self_collision=False,
         replace_cylinders_with_capsules=False,
-        asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle_omni/beetle_art_omni.urdf",
+        asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/beetle_omni/beetle_omni.urdf",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -197,7 +197,8 @@ BEETLE_OMNI_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 1.2),
         joint_pos={
-            ".*": 0.0,
+            "rotor.*": 5.0,
+            "gimbal.*": 0.0,
         },
         joint_vel={
             "rotor.*": 0.0,
@@ -213,16 +214,28 @@ BEETLE_OMNI_CFG = ArticulationCfg(
             stiffness=0.0,
             damping=150.0,
         ),
-        "servos": DCMotorCfg(
+        # "servos": DCMotorCfg(
+        #     joint_names_expr=["gimbal.*"],
+        #     effort_limit=1.0,
+        #     saturation_effort=1.0,
+        #     velocity_limit=3.0,
+        #     velocity_limit_sim=3.0,
+        #     effort_limit_sim=6.6,
+        #     stiffness=5.0,
+        #     damping=0.1,
+        #     friction=0.0,
+        # ),
+        "gimbal": DelayedPDActuatorCfg(
             joint_names_expr=["gimbal.*"],
-            effort_limit=1.0,
-            saturation_effort=1.0,
+            effort_limit=6.6,
             velocity_limit=3.0,
             velocity_limit_sim=3.0,
             effort_limit_sim=6.6,
             stiffness=5.0,
             damping=0.1,
             friction=0.0,
+            min_delay=1,
+            max_delay=3,
         ),
     },
 )

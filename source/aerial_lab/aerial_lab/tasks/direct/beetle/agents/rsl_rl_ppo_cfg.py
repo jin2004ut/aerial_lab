@@ -47,9 +47,9 @@ class BeetlePPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 @configclass
 class BeetleOmniPPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    num_steps_per_env = 24
+    num_steps_per_env = 48
     max_iterations = 10001
-    save_interval = 1000
+    save_interval = 500
     experiment_name = "beetle_omni"
     obs_groups = {
         "policy": ["policy"],

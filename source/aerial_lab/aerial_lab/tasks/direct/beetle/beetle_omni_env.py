@@ -55,7 +55,7 @@ PUSH_ANG_VEL = 0.3  # rad/s
 class PoseTrackingEnvWindow(BaseEnvWindow):
     """Window manager for the Beetle environment."""
 
-    def __init__(self, env: BeetleEnv, window_name: str = "IsaacLab"):
+    def __init__(self, env: BeetleOmniEnv, window_name: str = "IsaacLab"):
         """Initialize the window.
 
         Args:
@@ -126,16 +126,17 @@ class EventCfg:
 
 
 @configclass
-class BeetleEnvCfg(DirectRLEnvCfg):
+class BeetleOmniEnvCfg(DirectRLEnvCfg):
     # env
-    sim_dt = 1 / 200.0
+    sim_dt = 1 / 400.0
     decimation = 4
+    num_steps_per_env = 48
     play_mode = False
     evaluate_mode = False
-    add_noise = True
+    add_noise = False
     add_randomization = True
     episode_length_s = 15.0
-    max_curricular_steps = 8000.0 * 24  # num_steps_per_env * max_iterations
+    max_curricular_steps = 8000.0 * num_steps_per_env  # num_steps_per_env * max_iterations
     # - spaces definition
     rotor_num = 4
     gimbal_num = 4
@@ -148,7 +149,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # servo positions (4)
     # last action (8)
     observation_space = 9 + 6 + 3 + 6 + gimbal_num + action_space
-    thrust_to_torque_ratio = -0.0157  # -0.0165
+    thrust_to_torque_ratio = -0.0165  # -0.0165
     rotor_direction = [1, -1, 1, -1]  # beetle_hyper, joint urdf configuration
     contact_force_threshold = 0.1
 
@@ -160,10 +161,10 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     ui_window_class_type = PoseTrackingEnvWindow
 
     class randomization:
-        lin_vel = 0.7
+        lin_vel = 1.0
         ang_vel = 1.0
         dof_pos = math.pi / 180.0 * 5.0  # 5 degrees
-        body_ang = math.pi / 180.0 * 90.0  # body tilt angle for init orientation sampling
+        body_ang = math.pi  # body tilt angle for init orientation sampling
 
     class normalization:
         class obs_scales:
@@ -171,21 +172,21 @@ class BeetleEnvCfg(DirectRLEnvCfg):
             lin_vel = 1.0
 
     class control:
-        body_ang = math.pi / 180.0 * 75.0  # body tilt angle for desired orientation sampling
+        body_ang = math.pi  # body tilt angle for desired orientation sampling
         clip_observations = 100.0
         clip_actions = 100.0
         # class control:
         gimbal_action_scale = 0.25
         thrust_action_scale = 1.25
 
-        thrust_limit = 16.0  # N
-        hover_thrust = 7.0  # N
+        thrust_limit = 20.0  # N
+        hover_thrust = 6.0  # N
         # gimbal_limit = math.pi * 3 / 4  # rad
         default_gimbal_pos = {
             "gimbal": 0.0,
         }
         limit_gimbal_pos = {
-            "gimbal": math.pi * 0.5,
+            "gimbal": math.pi * 1.25,
         }
 
     # # # # reward scales # # # # # # # #
@@ -204,7 +205,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     # angular_to_goal_reward_scale = 3.0
     # angular_error_to_goal_reward_scale = -5.0
     # angular_error_to_goal_reward_scale = 3.0
-    angular_to_goal_reward_scale = 2.5
+    angular_to_goal_reward_scale = 2.0
 
     died_reward_scale = -1.0
     reach_goal_reward_timeout_scale = 0.0
@@ -215,7 +216,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     thrust_action_rate_reward_scale = 0.0  # -1.0e-4
     gimbal_acc_reward_scale = -1.5e-7  # -1.5e-7
     gimbal_limit_reward_scale = 0.0  # -0.01
-    gimbal_limit_scale = math.pi * 0.45
+    gimbal_limit_scale = math.pi * 1.2
     thrust_limit_reward_scale = 0.0  # -0.01
     thrust_limit = control.thrust_limit * 0.9
 
@@ -272,7 +273,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         "thrust_coeff": 1.0,
         "torque_coeff": thrust_to_torque_ratio,
         "randomize_ratio": 0.0,
-        "max_vel": 200.0,
+        "max_vel": 1000.0,
         "max_foc": control.thrust_limit,
         "vel_wn": 1.0,
         "vel_zeta": 0.8,
@@ -308,7 +309,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     )
 
     # robot_cfg: ArticulationCfg = MINI_QUADROTOR_CFG.replace(prim_path="/World/envs/env_.*/Robot")
-    robot_cfg: ArticulationCfg = BEETLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+    robot_cfg: ArticulationCfg = BEETLE_OMNI_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=8192, env_spacing=4.0, replicate_physics=True)
@@ -350,49 +351,10 @@ class BeetleEnvCfg(DirectRLEnvCfg):
         events: EventCfg = EventCfg()
 
 
-@configclass
-class BeetleOmniEnvCfg(BeetleEnvCfg):
+class BeetleOmniEnv(DirectRLEnv):
+    cfg: BeetleOmniEnvCfg
 
-    sim_dt = 1 / 200.0
-    thrust_to_torque_ratio = -0.0165  # -0.0165
-    rotor_direction = [1, -1, 1, -1]  # beetle_hyper, joint urdf configuration
-
-    class randomization(BeetleEnvCfg.randomization):
-        body_ang = math.pi
-
-    class control(BeetleEnvCfg.control):
-        body_ang = math.pi
-        thrust_limit = 22.0  # N
-        hover_thrust = 7.0  # N
-        # gimbal_limit = math.pi * 3 / 4  # rad
-        default_gimbal_pos = {
-            "gimbal": 0.0,
-        }
-        limit_gimbal_pos = {
-            "gimbal": math.pi * 1.25,
-        }
-
-    rotorCfg = {
-        "rotor_num": 4,
-        "dt": sim_dt,
-        "mode": "foc",
-        "thrust_coeff": 1.0,
-        "torque_coeff": thrust_to_torque_ratio,
-        "max_vel": 1000.0,
-        "max_foc": control.thrust_limit,
-        "vel_wn": 1.0,
-        "vel_zeta": 0.8,
-        "foc_wn": 1.0,
-        "foc_zeta": 0.8,
-    }
-
-    robot_cfg: ArticulationCfg = BEETLE_OMNI_CFG.replace(prim_path="/World/envs/env_.*/Robot")
-
-
-class BeetleEnv(DirectRLEnv):
-    cfg: BeetleEnvCfg
-
-    def __init__(self, cfg: BeetleEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(self, cfg: BeetleOmniEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
         try:
             print(f"BeetleEnv init: cfg class = {cfg.__class__.__name__}")
@@ -517,6 +479,13 @@ class BeetleEnv(DirectRLEnv):
         print("Gimbal Default Positions: ", self._gimbal_default_pos[0])
         print("Rotor IDs: ", self._rotor_ids[0])
         print("Rotor Names: ", self._rotor_ids[1])
+        # masses = self._robot.root_physx_view.get_masses()[0]
+        # body_ids = torch.arange(self._robot.num_bodies, dtype=torch.int)
+        # print("Robot link masses: ")
+        # for i, body_id in enumerate(body_ids):
+        #     body_name = self._robot.body_names[body_id]
+        #     body_mass = masses[i].item()
+        #     print(f" - Body ID: {body_id}, Name: {body_name}, Mass: {body_mass:.4f} kg")
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
         self._rotors = RotorGroup(
@@ -846,7 +815,7 @@ class BeetleEnv(DirectRLEnv):
             torch.linalg.norm(self._contact_sensor.data.net_forces_w.squeeze(1), dim=-1)
             > self.cfg.contact_force_threshold
         )
-        drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1, self._robot.data.root_pos_w[:, 2] > 5.0)
+        drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.4, self._robot.data.root_pos_w[:, 2] > 5.0)
         died = torch.logical_or(crash, drift)
         # # # DEBUG
         if self.cfg.evaluate_mode:
@@ -858,10 +827,10 @@ class BeetleEnv(DirectRLEnv):
             env_ids = self._robot._ALL_INDICES
 
         quat_sample_rate = (
-            (self.common_step_counter + 300 * 24) / self.cfg.max_curricular_steps * 12
+            (self.common_step_counter + 300 * self.cfg.num_steps_per_env) / self.cfg.max_curricular_steps * 12
         )  # start from 0.3, reach 0.8
         pos_sample_rate = (
-            (self.common_step_counter + 100 * 24) / self.cfg.max_curricular_steps * 12
+            (self.common_step_counter + 100 * self.cfg.num_steps_per_env) / self.cfg.max_curricular_steps * 12
         )  # start from 0.1, reach 0.6
         success_flags = self._reach_goal  # success flags
         self._success_window = torch.cat([self._success_window, success_flags])[-self._success_window_size :]
@@ -882,7 +851,7 @@ class BeetleEnv(DirectRLEnv):
 
         quat_sample_rate = min(quat_sample_rate, 1.0)
         pos_sample_rate = min(pos_sample_rate, 1.0)
-        # quat_sample_rate = 1.0
+        quat_sample_rate = 1.0
         # pos_sample_rate = 1.0
         self._quat_sample_rate = quat_sample_rate
         self._pos_sample_rate = pos_sample_rate
@@ -982,7 +951,7 @@ class BeetleEnv(DirectRLEnv):
 
         ang_range = self.ctrlCfg.body_ang * quat_sample_rate
         pos_range = 5.0 * pos_sample_rate
-        pos_range_z = 1.0 * pos_sample_rate
+        pos_range_z = 1.5 * pos_sample_rate
 
         # Reset robot state
         joint_pos = self._robot.data.default_joint_pos[env_ids]
