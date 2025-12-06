@@ -134,7 +134,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     play_mode = False
     evaluate_mode = False
     add_noise = False
-    add_randomization = True
+    add_randomization = False
     episode_length_s = 15.0
     max_curricular_steps = 8000.0 * num_steps_per_env  # num_steps_per_env * max_iterations
     # - spaces definition
@@ -163,7 +163,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     class randomization:
         lin_vel = 1.0
         ang_vel = 1.0
-        dof_pos = math.pi / 180.0 * 5.0  # 5 degrees
+        dof_pos = math.pi / 180.0 * 3.0  # 5 degrees
         body_ang = math.pi  # body tilt angle for init orientation sampling
 
     class normalization:
@@ -173,6 +173,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
 
     class control:
         body_ang = math.pi  # body tilt angle for desired orientation sampling
+        ref_lin_vel = 1.5  # m/s
         clip_observations = 100.0
         clip_actions = 100.0
         # class control:
@@ -200,12 +201,12 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     # reach_ang_vel_reward_scale = -0.1
     thrust_power_reward_scale = -5.0e-4  # -1.0e-4
     # goal_orientation_reward_scale = -0.001
-    distance_to_goal_reward_scale = 0.0
+    distance_to_goal_reward_scale = -0.5
     # quat_error_to_goal_reward_scale = -6.0
     # angular_to_goal_reward_scale = 3.0
     # angular_error_to_goal_reward_scale = -5.0
     # angular_error_to_goal_reward_scale = 3.0
-    angular_to_goal_reward_scale = 2.0
+    angular_to_goal_reward_scale = 2.5
 
     died_reward_scale = -1.0
     reach_goal_reward_timeout_scale = 0.0
@@ -260,7 +261,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
         "dof_pos": {
             "type": "uniform",
             "dim": gimbal_num,
-            "mean": math.pi * (1.0 / 180.0),
+            "mean": 0.0,
             "std": math.pi * (1.0 / 180.0),
             "clip": 0.1,
         },
@@ -312,7 +313,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     robot_cfg: ArticulationCfg = BEETLE_OMNI_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=8192, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
 
     contact_sensor: ContactSensorCfg = ContactSensorCfg(
         prim_path="/World/envs/env_.*/Robot/base_link",  # Bind to the robot root link
@@ -374,6 +375,9 @@ class BeetleOmniEnv(DirectRLEnv):
         self._success_rate = torch.zeros(0, device=self.device)
         self._success_window_size = 100
         self._success_window = torch.zeros(0, device=self.device)
+        self._desired_time_to_goal_s = torch.full(
+            (self.num_envs,), cfg.episode_length_s, device=self.device
+        )  # desired time to reach the goal position
 
         # Total thrust and moment applied to the base of the quadcopter
         self._actions = torch.zeros(self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device)
@@ -397,8 +401,6 @@ class BeetleOmniEnv(DirectRLEnv):
         self._gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
         self._gimbal_vel = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
         self._gimbal_vel_last = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
-        self._last_gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
-        self._last_last_gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
 
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -457,7 +459,18 @@ class BeetleOmniEnv(DirectRLEnv):
             device=self.device,
             dtype=torch.float32,
         )
+        self._initial_gimbal_pos = gimbal_default_pos.unsqueeze(0).expand(self.num_envs, -1).clone()
         self._gimbal_default_pos = gimbal_default_pos.unsqueeze(0).expand(self.num_envs, -1).clone()
+        if self.cfg.add_randomization:
+            self._gimbal_default_pos = self._initial_gimbal_pos + torch.empty_like(self._initial_gimbal_pos).uniform_(
+                -self.randomCfg.dof_pos, self.randomCfg.dof_pos
+            )
+        self._last_gimbal_pos = (
+            torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device) - self._gimbal_default_pos
+        )
+        self._last_last_gimbal_pos = (
+            torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device) - self._gimbal_default_pos
+        )
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         # print("Beetle robot link list: ")
         # for link in self._robot.body_names:
@@ -583,7 +596,7 @@ class BeetleOmniEnv(DirectRLEnv):
         gimbal_pos = self._last_gimbal_pos
 
         self._last_last_gimbal_pos = self._last_gimbal_pos
-        self._last_gimbal_pos = self._robot.data.joint_pos[:, self._gimbal_ids[0]]
+        self._last_gimbal_pos = self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos
 
         if self.cfg.add_noise:
             if "lin_vel" in self.noiseModel.params:
@@ -690,18 +703,19 @@ class BeetleOmniEnv(DirectRLEnv):
         lin_vel_norm = torch.linalg.norm(self._robot.data.root_lin_vel_b, dim=1)
         # lin_vel_over = torch.clamp(lin_vel_norm - self.cfg.lin_vel_th, min=0.0)
         # lin_vel = torch.square(lin_vel_over)
-        lin_vel_norm = torch.clamp(lin_vel_norm, max=10.0)
+        lin_vel_norm = torch.clamp(lin_vel_norm, max=3.0)
         lin_vel = torch.square(torch.exp(0.6 * lin_vel_norm) - 1.0)
 
         ang_vel_norm = torch.linalg.norm(self._robot.data.root_ang_vel_b, dim=1)
         # ang_vel_over = torch.clamp(ang_vel_norm - self.cfg.ang_vel_th, min=0.0)
         # ang_vel = torch.square(ang_vel_over)
-        ang_vel_norm = torch.clamp(ang_vel_norm, max=10.0)
+        ang_vel_norm = torch.clamp(ang_vel_norm, max=4.0)
         ang_vel = torch.square(torch.exp(0.4 * ang_vel_norm) - 1.0)
 
         # distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
         distance_to_goal = torch.linalg.norm(self._position_error, dim=1)
-        distance_to_goal_mapped = torch.square(torch.tanh(distance_to_goal / 0.6))
+        # distance_to_goal_mapped = torch.square(torch.tanh(distance_to_goal / 0.6))
+        distance_to_goal_mapped = torch.square(torch.tanh(0.5 * distance_to_goal))
         # distance_to_goal_mapped = torch.tanh(distance_to_goal / 0.6)
         # distance_to_goal_mapped = torch.square(distance_to_goal / 2.0)
         # distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
@@ -719,12 +733,20 @@ class BeetleOmniEnv(DirectRLEnv):
         # angular_to_goal_mapped = (1 - torch.exp(-angular_to_goal / 0.8))
         # angular_error_to_goal_mapped = 1 - torch.exp(-angular_to_goal)
 
+        current_time_s = self.episode_length_buf * self.cfg.sim.dt * self.cfg.decimation
+        distance_reward_map = current_time_s / self._desired_time_to_goal_s
+        distance_reward_map = torch.clamp(distance_reward_map, max=1.0)
+
         rewards = {
             "lin_vel": lin_vel * self.cfg.lin_vel_reward_scale * self.step_dt,
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
-            "distance_to_goal": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
+            "distance_to_goal": (
+                distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt * distance_reward_map
+            ),
             "thrust_power": thrust_power * self.cfg.thrust_power_reward_scale * self.step_dt,
-            "angular_to_goal": angular_to_goal_mapped * self.cfg.angular_to_goal_reward_scale * self.step_dt,
+            "angular_to_goal": (
+                angular_to_goal_mapped * self.cfg.angular_to_goal_reward_scale * self.step_dt * distance_reward_map
+            ),
         }
         total_reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
 
@@ -815,7 +837,7 @@ class BeetleOmniEnv(DirectRLEnv):
             torch.linalg.norm(self._contact_sensor.data.net_forces_w.squeeze(1), dim=-1)
             > self.cfg.contact_force_threshold
         )
-        drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.4, self._robot.data.root_pos_w[:, 2] > 5.0)
+        drift = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1, self._robot.data.root_pos_w[:, 2] > 6.0)
         died = torch.logical_or(crash, drift)
         # # # DEBUG
         if self.cfg.evaluate_mode:
@@ -827,10 +849,10 @@ class BeetleOmniEnv(DirectRLEnv):
             env_ids = self._robot._ALL_INDICES
 
         quat_sample_rate = (
-            (self.common_step_counter + 300 * self.cfg.num_steps_per_env) / self.cfg.max_curricular_steps * 12
+            (self.common_step_counter + 300 * self.cfg.num_steps_per_env) / self.cfg.max_curricular_steps * 6
         )  # start from 0.3, reach 0.8
         pos_sample_rate = (
-            (self.common_step_counter + 100 * self.cfg.num_steps_per_env) / self.cfg.max_curricular_steps * 12
+            (self.common_step_counter + 100 * self.cfg.num_steps_per_env) / self.cfg.max_curricular_steps * 6
         )  # start from 0.1, reach 0.6
         success_flags = self._reach_goal  # success flags
         self._success_window = torch.cat([self._success_window, success_flags])[-self._success_window_size :]
@@ -851,7 +873,7 @@ class BeetleOmniEnv(DirectRLEnv):
 
         quat_sample_rate = min(quat_sample_rate, 1.0)
         pos_sample_rate = min(pos_sample_rate, 1.0)
-        quat_sample_rate = 1.0
+        # quat_sample_rate = 1.0
         # pos_sample_rate = 1.0
         self._quat_sample_rate = quat_sample_rate
         self._pos_sample_rate = pos_sample_rate
@@ -896,6 +918,10 @@ class BeetleOmniEnv(DirectRLEnv):
         self._robot.reset(env_ids)
         self._rotors.reset(env_ids)
         self.noiseModel.reset(env_ids)
+        if self.cfg.add_randomization:
+            self._gimbal_default_pos[env_ids] = self._initial_gimbal_pos[env_ids] + torch.empty_like(
+                self._initial_gimbal_pos[env_ids]
+            ).uniform_(-self.randomCfg.dof_pos, self.randomCfg.dof_pos)
 
         super()._reset_idx(env_ids)
         if len(env_ids) == self.num_envs:
@@ -951,7 +977,7 @@ class BeetleOmniEnv(DirectRLEnv):
 
         ang_range = self.ctrlCfg.body_ang * quat_sample_rate
         pos_range = 5.0 * pos_sample_rate
-        pos_range_z = 1.5 * pos_sample_rate
+        pos_range_z = 2.5 * pos_sample_rate
 
         # Reset robot state
         joint_pos = self._robot.data.default_joint_pos[env_ids]
@@ -989,7 +1015,7 @@ class BeetleOmniEnv(DirectRLEnv):
             )
             self._desired_pos_w[env_ids, :2] += self._terrain.env_origins[env_ids, :2]
             self._desired_pos_w[env_ids, 2] = torch.empty_like(self._desired_pos_w[env_ids, 2]).uniform_(
-                max(0.5, 1.5 - pos_range_z), min(1.5 + pos_range_z, 3.0)
+                max(0.5, 2.5 - pos_range_z), min(2.5 + pos_range_z, 5.0)
             )
             default_root_state[:, 3:7] = samlpeUniformQuatwithTilt(
                 torch.tensor(self.randomCfg.body_ang), len(env_ids)
@@ -1003,6 +1029,8 @@ class BeetleOmniEnv(DirectRLEnv):
                 torch.empty_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
             )
 
+        desired_distance = torch.linalg.norm(self._desired_pos_w[env_ids] - default_root_state[:, :3], dim=1)
+        self._desired_time_to_goal_s[env_ids] = desired_distance / self.ctrlCfg.ref_lin_vel
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
@@ -1062,7 +1090,7 @@ class BeetleOmniEnv(DirectRLEnv):
         thrusts_pos = self._thrusts_sensor.data.pos_w
         thrusts_quat = self._thrusts_sensor.data.quat_w
 
-        if thrusts_pos is None:
+        if thrusts_pos is None or thrusts_quat is None:
             print("Thrust positions not available yet for debug visualization.")
             return
 

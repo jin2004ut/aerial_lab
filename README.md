@@ -277,6 +277,20 @@ To enable your extension, follow these steps:
     - Find your extension under the `Third Party` category.
     - Toggle it to enable your extension.
 
+### Setup IsaacLab Python path
+```json
+"python.analysis.extraPaths": [
+        "${workspaceFolder}/source/aerial_lab",
+        "~/miniconda3/envs/aeriallab/lib/python3.11/site-packages",
+        "<path_to_isaaclab>/IsaacLab/source",
+        "<path_to_isaaclab>/IsaacLab/source/isaaclab_mimic",
+        "<path_to_isaaclab>/IsaacLab/source/isaaclab",
+        "<path_to_isaaclab>/IsaacLab/source/isaaclab_rl",
+        "<path_to_isaaclab>/IsaacLab/source/isaaclab_assets",
+        "<path_to_isaaclab>/IsaacLab/source/isaaclab_tasks"
+    ],
+```
+
 ## Code formatting
 
 We have a pre-commit template to automatically format your code.

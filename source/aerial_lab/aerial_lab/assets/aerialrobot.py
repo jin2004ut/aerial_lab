@@ -195,7 +195,7 @@ BEETLE_OMNI_CFG = ArticulationCfg(
         copy_from_source=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 1.2),
+        pos=(0.0, 0.0, 2.0),
         joint_pos={
             "rotor.*": 5.0,
             "gimbal.*": 0.0,

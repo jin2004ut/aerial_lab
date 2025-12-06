@@ -9,9 +9,9 @@
   <thrust_link name="thrust"/>
   <m_f_rate value="-0.0165"/> -->
   <!-- [N] -->
-  
+
     ## dummy
-    
+
   <link name="root">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -19,10 +19,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
     </inertial>
   </link>
-  
+
 
     ## main body
-    
+
   <link name="base_link">
     <inertial>
       <origin rpy="0 0 0" xyz="0.00000847 0.00023741 0.01491666"/>
@@ -53,10 +53,10 @@
     <child link="base_link"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
   </joint>
-  
+
 
     ## fc: flight controller. Note that &quot;baselink&quot; is assigned to &quot;fc&quot; in common.xacro by default
-    
+
   <link name="fc">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -69,19 +69,19 @@
     <parent link="base_link"/>
     <origin rpy="0 0 0" xyz="-0.0175 -0.0015 0.06647"/>
       # should be aligned with the position of IMU
-    
+
   </joint>
-  
+
 
     ## rotor arm macro
-    
-  
+
+
 
     ## dummy rotor arms
-    
-  
+
+
       ## link
-      
+
   <link name="rotor_arm1">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -89,17 +89,17 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
     </inertial>
   </link>
-  
+
       ## joint
-      
+
   <joint name="base_arm_joint1" type="fixed">
     <parent link="base_link"/>
     <child link="rotor_arm1"/>
     <origin rpy="0 0 0.7853981633974483" xyz="0.17938 0.17938 0.0171"/>
   </joint>
-  
+
       ## link
-      
+
   <link name="rotor_arm2">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -107,17 +107,17 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
     </inertial>
   </link>
-  
+
       ## joint
-      
+
   <joint name="base_arm_joint2" type="fixed">
     <parent link="base_link"/>
     <child link="rotor_arm2"/>
     <origin rpy="0 0 2.356194490192345" xyz="-0.17938 0.17938 0.0171"/>
   </joint>
-  
+
       ## link
-      
+
   <link name="rotor_arm3">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -125,17 +125,17 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
     </inertial>
   </link>
-  
+
       ## joint
-      
+
   <joint name="base_arm_joint3" type="fixed">
     <parent link="base_link"/>
     <child link="rotor_arm3"/>
     <origin rpy="0 0 3.9269908169872414" xyz="-0.17938 -0.17938 0.0171"/>
   </joint>
-  
+
       ## link
-      
+
   <link name="rotor_arm4">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -143,9 +143,9 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
     </inertial>
   </link>
-  
+
       ## joint
-      
+
   <joint name="base_arm_joint4" type="fixed">
     <parent link="base_link"/>
     <child link="rotor_arm4"/>
@@ -155,10 +155,10 @@
     <mu1>0.1</mu1>
     <mu2>0.1</mu2>
   </gazebo>
-  
+
     ## link
     #### rotor parent link (virtual) ####
-    
+
   <link name="gimbal_link1">
     <inertial>
       <origin rpy="0 0 0" xyz="0.02085225 0.0 -0.01276312"/>
@@ -181,10 +181,10 @@
   <gazebo reference="gimbal_link1">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     ## rotor parent link (virtual)
-    
+
   <link name="rotor_parent1">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -192,10 +192,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </link>
-  
+
 
     ## thrust link (virtual)
-    
+
   <link name="thrust1">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -206,12 +206,12 @@
   <gazebo reference="thrust1">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### joints ####
 
     #### gimbal joints ####
-    
+
   <joint name="gimbal1" type="revolute">
     <limit effort="6.6" lower="-3.926991" upper="3.926991" velocity="3.0"/>
     <parent link="rotor_arm1"/>
@@ -230,18 +230,18 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### rotor parent link joint (virtual) ####
-    
+
   <joint name="rotor_parent_link_joint1" type="fixed">
     <parent link="gimbal_link1"/>
     <child link="rotor_parent1"/>
     <origin rpy="0 0 0" xyz="0.02185 0.0 0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor1" type="continuous">
     <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
     <parent link="rotor_parent1"/>
@@ -259,10 +259,10 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     ## link
     #### rotor parent link (virtual) ####
-    
+
   <link name="gimbal_link2">
     <inertial>
       <origin rpy="0 0 0" xyz="0.02085225 0.0 -0.01276312"/>
@@ -285,10 +285,10 @@
   <gazebo reference="gimbal_link2">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     ## rotor parent link (virtual)
-    
+
   <link name="rotor_parent2">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -296,10 +296,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </link>
-  
+
 
     ## thrust link (virtual)
-    
+
   <link name="thrust2">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -310,12 +310,12 @@
   <gazebo reference="thrust2">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### joints ####
 
     #### gimbal joints ####
-    
+
   <joint name="gimbal2" type="revolute">
     <limit effort="6.6" lower="-3.926991" upper="3.926991" velocity="3.0"/>
     <parent link="rotor_arm2"/>
@@ -334,18 +334,18 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### rotor parent link joint (virtual) ####
-    
+
   <joint name="rotor_parent_link_joint2" type="fixed">
     <parent link="gimbal_link2"/>
     <child link="rotor_parent2"/>
     <origin rpy="0 0 0" xyz="0.02185 0.0 0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor2" type="continuous">
     <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
     <parent link="rotor_parent2"/>
@@ -363,10 +363,10 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     ## link
     #### rotor parent link (virtual) ####
-    
+
   <link name="gimbal_link3">
     <inertial>
       <origin rpy="0 0 0" xyz="0.02085225 0.0 -0.01276312"/>
@@ -389,10 +389,10 @@
   <gazebo reference="gimbal_link3">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     ## rotor parent link (virtual)
-    
+
   <link name="rotor_parent3">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -400,10 +400,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </link>
-  
+
 
     ## thrust link (virtual)
-    
+
   <link name="thrust3">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -414,12 +414,12 @@
   <gazebo reference="thrust3">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### joints ####
 
     #### gimbal joints ####
-    
+
   <joint name="gimbal3" type="revolute">
     <limit effort="6.6" lower="-3.926991" upper="3.926991" velocity="3.0"/>
     <parent link="rotor_arm3"/>
@@ -438,18 +438,18 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### rotor parent link joint (virtual) ####
-    
+
   <joint name="rotor_parent_link_joint3" type="fixed">
     <parent link="gimbal_link3"/>
     <child link="rotor_parent3"/>
     <origin rpy="0 0 0" xyz="0.02185 0.0 0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor3" type="continuous">
     <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
     <parent link="rotor_parent3"/>
@@ -467,10 +467,10 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     ## link
     #### rotor parent link (virtual) ####
-    
+
   <link name="gimbal_link4">
     <inertial>
       <origin rpy="0 0 0" xyz="0.02085225 0.0 -0.01276312"/>
@@ -493,10 +493,10 @@
   <gazebo reference="gimbal_link4">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     ## rotor parent link (virtual)
-    
+
   <link name="rotor_parent4">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -504,10 +504,10 @@
       <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </link>
-  
+
 
     ## thrust link (virtual)
-    
+
   <link name="thrust4">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -518,12 +518,12 @@
   <gazebo reference="thrust4">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
-  
+
 
     #### joints ####
 
     #### gimbal joints ####
-    
+
   <joint name="gimbal4" type="revolute">
     <limit effort="6.6" lower="-3.926991" upper="3.926991" velocity="3.0"/>
     <parent link="rotor_arm4"/>
@@ -542,18 +542,18 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
-  
+
     #### rotor parent link joint (virtual) ####
-    
+
   <joint name="rotor_parent_link_joint4" type="fixed">
     <parent link="gimbal_link4"/>
     <child link="rotor_parent4"/>
     <origin rpy="0 0 0" xyz="0.02185 0.0 0.0"/>
   </joint>
-  
+
 
     #### rotor joint (virtual) ####
-    
+
   <joint name="rotor4" type="continuous">
     <limit effort="100.0" lower="1.0" upper="30.0" velocity="0.5"/>
     <parent link="rotor_parent4"/>
@@ -615,7 +615,7 @@
                 scale="1 1 1"/> -->
         </geometry>
       </collision>
-     
+
   </link>
   <!-- 2) Mount the ball to the end-effector flange -->
   <joint name="ee_mount_to_ball" type="fixed">
@@ -631,4 +631,3 @@
     <origin rpy="0 0 0" xyz="0 0 0.11"/>
   </joint>
 </robot>
-
