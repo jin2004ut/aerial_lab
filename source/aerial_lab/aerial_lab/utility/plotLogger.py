@@ -165,6 +165,8 @@ class ObservationLogger:
         if filename is None:
             timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"obs_data_{timestamp_str}.csv"
+        else:
+            filename = f"{filename}.csv"
 
         csv_path = self.save_dir / filename
 

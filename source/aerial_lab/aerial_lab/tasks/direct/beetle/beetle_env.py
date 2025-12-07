@@ -131,7 +131,7 @@ class BeetleEnvCfg(DirectRLEnvCfg):
     sim_dt = 1 / 200.0
     decimation = 4
     play_mode = False
-    evaluate_mode = False
+    evaluate_mode = True
     add_noise = True
     add_randomization = True
     episode_length_s = 15.0
@@ -585,15 +585,16 @@ class BeetleEnv(DirectRLEnv):
 
     def _apply_action(self) -> None:
         """Apply the action to the robot. Every dt step"""
-        if self.cfg.evaluate_mode:
-            if self.common_step_counter < 50:
-                return
-        self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
-        self._robot.set_external_force_and_torque(
-            forces=self._target_thrust_force,
-            torques=self._target_rotor_torque,
-            body_ids=self._thrust_ids[0],
-        )
+        # if self.cfg.evaluate_mode:
+        #     if self.common_step_counter < 50:
+        #         return
+        if self.common_step_counter % 1 == 0:
+            self._robot.set_joint_position_target(self._action_gimbal_pos, self._gimbal_ids[0])
+            # self._robot.set_external_force_and_torque(
+            #     forces=self._target_thrust_force,
+            #     torques=self._target_rotor_torque,
+            #     body_ids=self._thrust_ids[0],
+            # )
 
         # env_ids = 1
         # if self.common_step_counter % 200 == 0:

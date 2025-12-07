@@ -8,7 +8,9 @@
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+from operator import imod
 
+import ipdb
 from isaaclab.app import AppLauncher
 
 # add argparse arguments
@@ -34,6 +36,10 @@ import gymnasium as gym
 import isaaclab_tasks  # noqa: F401
 import torch
 from isaaclab_tasks.utils import parse_env_cfg
+from aerial_lab.utility.plotLogger import ObservationLogger  # isort: skip
+import math
+import numpy as np
+import os
 
 
 def main():
@@ -55,27 +61,40 @@ def main():
     env.reset()
     # simulate environment
     counter = 0
+    plot_logger = ObservationLogger(save_dir=os.path.join("/home/wentao/", "plots"), max_samples=100 * 50, plot_interval=5.0)
     while simulation_app.is_running():
         # run everything in inference mode
         with torch.inference_mode():
             # compute zero actions
             actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
             counter += 1
-            gimbal_target = 2 * torch.sin(torch.tensor(counter / 50.0))  # oscillate between -2 and 2
-            # actions[:, 0] = gimbal_target  # set gimbal 1 target
-            # actions[:, 1] = -gimbal_target  # set gimbal 2 target
-            # actions[:, 2] = gimbal_target  # set gimbal 3 target
-            # actions[:, 3] = -gimbal_target  # set gimbal 4 target
-
+            gimbal_target = 2 * torch.sin(torch.tensor(counter * env.unwrapped.step_dt / 4.0 * math.pi * 2))  # oscillate between -2 and 2
+            actions[:, 0] = gimbal_target  # set gimbal 1 target
+            actions[:, 1] = -gimbal_target  # set gimbal 2 target
+            actions[:, 2] = gimbal_target  # set gimbal 3 target
+            actions[:, 3] = -gimbal_target  # set gimbal 4 target
             # thrust_target = 200 * torch.sin(torch.tensor(counter / 50.0))  # constant thrust
             # thrust_target = torch.full((1, 4), 0, device=env.unwrapped.device)
             # actions[:, 4:8] = thrust_target  # set thrust targets
-            actions[:, 4] = 1.0
-            actions[:, 5] = 1.0
-            actions[:, 6] = 1.0
-            actions[:, 7] = 1.0
+            # actions[:, 4] = 1.0
+            # actions[:, 5] = 1.0
+            # actions[:, 6] = 1.0
+            # actions[:, 7] = 1.0
             # apply actions
-            env.step(actions)
+            obs, _, _, _, _ = env.step(actions)
+            # import ipdb; ipdb.set_trace()
+            obs_np = obs["policy"][0].cpu().numpy()
+            obs_39 = np.concatenate([
+                obs_np[:12],  # lin_vel(3) + ang_vel(3) + gravity(3) + goal_pos(3)
+                np.zeros(3, dtype=np.float32),  # placeholder for angular_error
+                obs_np[12:],  # gimbal(4) + root_rot(6) + goal_rot(6) + last_action(8)
+            ])
+            actions_np = actions[0].cpu().numpy()
+            plot_logger.log(obs_39, actions_np)
+            if counter * env.unwrapped.step_dt > 100.0:
+                plot_logger.save_to_csv(os.path.join("joint_resoponse_200Hz"))
+                plot_logger.save_final_plot()
+                break
 
     # close the simulator
     env.close()

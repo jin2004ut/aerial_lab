@@ -204,9 +204,9 @@ python scripts/rsl_rl/play.py --task=Beetle-Direct-Pose-v0 --checkpoint=logs/rsl
 To facilitate evaluate policy, you can check outcomes in `exported/` and `video/`.
 ```bash
 # Evaluate single policy
-python scripts/rsl_rl/evaluate.py --task=Beetle-Pose-v0 --num_envs=4 --device=cpu --video --video_length=500 --checkpoint=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19/model_10000.pt --headless
+python scripts/rsl_rl/evaluate.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --device=cpu --video --video_length=500 --checkpoint=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19/model_10000.pt --headless
 # Evaluate policy batch
-python scripts/rsl_rl/evaluate.py --task=Beetle-Pose-v0 --num_envs=4 --device=cpu --video --video_length=500 --run_dir=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19 --headless
+python scripts/rsl_rl/eval_ckpts.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --device=cpu --video --video_length=500 --run_dir=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19 --headless
 ```
 
 
