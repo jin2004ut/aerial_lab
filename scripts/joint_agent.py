@@ -72,9 +72,8 @@ def main():
             # compute zero actions
             actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
             counter += 1
-            gimbal_target = 2 * torch.sin(
-                torch.tensor(counter * env.unwrapped.step_dt / 4.0 * math.pi * 2)
-            )  # oscillate between -2 and 2
+            gimbal_target = 3.5 * torch.sin(torch.tensor(counter * env.unwrapped.step_dt / 4.0 * math.pi * 2))  # oscillate between -3.5 and 3.5
+            gimbal_target = gimbal_target * 4.0
             actions[:, 0] = gimbal_target  # set gimbal 1 target
             actions[:, 1] = -gimbal_target  # set gimbal 2 target
             actions[:, 2] = gimbal_target  # set gimbal 3 target

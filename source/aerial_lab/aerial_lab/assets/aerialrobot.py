@@ -244,8 +244,8 @@ BEETLE_OMNI_CFG = ArticulationCfg(
             stiffness=0.285,
             damping=0.019,
             friction=0.0,
-            min_delay=0,
-            max_delay=0,
+            min_delay=1,
+            max_delay=3,
         ),
     },
 )
