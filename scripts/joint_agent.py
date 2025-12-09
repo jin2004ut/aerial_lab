@@ -31,15 +31,17 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
+import math
+import os
+
 import aerial_lab.tasks  # noqa: F401
 import gymnasium as gym
 import isaaclab_tasks  # noqa: F401
+import numpy as np
 import torch
 from isaaclab_tasks.utils import parse_env_cfg
+
 from aerial_lab.utility.plotLogger import ObservationLogger  # isort: skip
-import math
-import numpy as np
-import os
 
 
 def main():
@@ -61,14 +63,18 @@ def main():
     env.reset()
     # simulate environment
     counter = 0
-    plot_logger = ObservationLogger(save_dir=os.path.join("/home/wentao/", "plots"), max_samples=100 * 50, plot_interval=5.0)
+    plot_logger = ObservationLogger(
+        save_dir=os.path.join("/home/wentao/", "plots"), max_samples=100 * 50, plot_interval=5.0
+    )
     while simulation_app.is_running():
         # run everything in inference mode
         with torch.inference_mode():
             # compute zero actions
             actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
             counter += 1
-            gimbal_target = 2 * torch.sin(torch.tensor(counter * env.unwrapped.step_dt / 4.0 * math.pi * 2))  # oscillate between -2 and 2
+            gimbal_target = 2 * torch.sin(
+                torch.tensor(counter * env.unwrapped.step_dt / 4.0 * math.pi * 2)
+            )  # oscillate between -2 and 2
             actions[:, 0] = gimbal_target  # set gimbal 1 target
             actions[:, 1] = -gimbal_target  # set gimbal 2 target
             actions[:, 2] = gimbal_target  # set gimbal 3 target
