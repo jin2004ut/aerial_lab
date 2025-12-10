@@ -1,6 +1,6 @@
 # HYDRUS:
 
-**Definiation**: Transformable multirotor with two-dimensional multilinks
+**Definition**: Transformable multirotor with two-dimensional multilinks
 
 <p align="center">
 <a href="https://www.youtube.com/embed/o_jsDUk0oFo" target="_blank"><img src="http://img.youtube.com/vi/o_jsDUk0oFo/0.jpg" alt="euroc" width="560 height="315" border="10" /></a>
@@ -19,7 +19,7 @@ in Proceedings of The 2018 IEEE International Conference on Robotics and Automat
 
 # how to use:
 
-**note**: the following instructions are based on hex type robot, we also have quad type robot (chage the var ```type```)
+**note**: the following instructions are based on hex type robot, we also have quad type robot (change the var ```type```)
 
 ## 0. calibration:
     Calibration is via rosserial between on-board processor and spinal. Please check the wiki.
@@ -56,7 +56,7 @@ $ roslaunch hydrus bringup.launch real_machine:=true simulation:=true headless:=
    - **keyboard**: please check instruction [wiki](https://github.com/JSKAerialRobot/aerial_robot/wiki/keyboard_operation)
    - **joystick**: please check instruction [wiki](https://github.com/JSKAerialRobot/aerial_robot/wiki/joystick_operation)
 
-## 3. transformation demostration
+## 3. transformation demonstration
    **note**: after the robot completely hovering with the message `Hovering!`
 
    - quad:  ``` $  rosrun hydrus hydrus_demo.py _link_num:=4 _duration:=6 _joint_control_topic_name:=/hydrus/joints_ctrl ```

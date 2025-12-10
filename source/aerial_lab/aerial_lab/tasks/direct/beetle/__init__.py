@@ -64,13 +64,13 @@ gym.register(
 )
 
 gym.register(
-    id="Aerial-Beetle-Direct-Pose-DEBUG-v0",
-    entry_point=f"{__name__}.beetle_env_debug:BeetleEnv",
+    id="Aerial-Beetle-Omni-Direct-Pose-v0",
+    entry_point=f"{__name__}.beetle_omni_env:BeetleOmniEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.beetle_env_debug:BeetleEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.beetle_omni_env:BeetleOmniEnvCfg",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:BeetlePPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:BeetleOmniPPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
     },
 )

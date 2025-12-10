@@ -122,7 +122,7 @@ source ~/[path_to_ws]/devel/setup.bash
 ```
 
 #### Addendum: Potential fixes to common problems
-- A frequent problem is the handling of the jobservers in the build process. When occuring during the build process - especially in the aerial_robot_control package - please try simply running the build command again.
+- A frequent problem is the handling of the jobservers in the build process. When occurring during the build process - especially in the aerial_robot_control package - please try simply running the build command again.
 - If for some reason there is a NumPy version error while building, the correct version to use is 1.21.5 since ROS-O only supports versions up to it. Therefore, please check with `apt list | grep numpy` and `pip list | grep numpy` for all NumPy versions on your system. Then uninstall all packages corresponding to incorrect versions using apt or pip respectively. Then reinstall NumPy with the correct version flag, e.g., `pip install numpy==1.21.5`.
 
 ### 5. If the build is successful, comment the code in step 3 back.
@@ -202,10 +202,10 @@ Before takeoff:
 1. run `sudo ds4drv` to connect the joystick.
 2. `roslaunch beetle_omni bringup_pc.launch`
 
-### Visual Computer
+### Visual Computergi
 
 1. `rosrun aerial_robot_planning visual_fb_mode.py`
-2. Adjust the window to fullfill the screen.
+2. Adjust the window to fulfill the screen.
 
 ## Build on onboard computer
 If you run into dependency issues with GLIBC - e.g., because you use Ubuntu 20.04 to run ROS but still need to use acados for NMPC control - please build `tera_renderer` from source. For background, GLIBC is one of the most central libraries that the Linux system builds on and its version is highly connected to the Ubuntu version used. Therefore, it is hard to upgrade it when needed by certain packages. One of these packages that need a relatively high version of GLIBC is `tera_renderer`. The newest version - at the time of writing - is v0.2.0 which provides already build AMD64 and ARM64 executables. To run these executables a GLIBC of >= 2.32 but Ubuntu 20.04 is on version GLIBC 2.31. The most recommended solution is to build the `tera_renderer` executable from source based on a previous version of the Tera Renderer git. To upgrade GLIBC is widely discouraged as it can easily break the OS.

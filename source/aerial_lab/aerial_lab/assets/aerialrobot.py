@@ -21,7 +21,8 @@ from isaaclab.assets import ArticulationCfg
 MINI_QUADROTOR_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         fix_base=False,
-        merge_fixed_joints=True,
+        root_link_name="base_link",
+        merge_fixed_joints=False,
         replace_cylinders_with_capsules=False,
         asset_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/mini_quadrotor/mini_quadrotor.urdf",
         activate_contact_sensors=True,
@@ -46,7 +47,7 @@ MINI_QUADROTOR_CFG = ArticulationCfg(
         copy_from_source=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.5),
+        pos=(0.0, 0.0, 1.5),
         joint_pos={
             ".*": 0.0,
         },

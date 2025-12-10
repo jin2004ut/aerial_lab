@@ -1,6 +1,6 @@
 # DRAGON:
 
-**Definiation**: A Dual-Rotor-Embedded Multilink Robot With the Ability of Multi-Degree-of-Freedom Aerial Transformation
+**Definition**: A Dual-Rotor-Embedded Multilink Robot With the Ability of Multi-Degree-of-Freedom Aerial Transformation
 
 <img src="images/dragon_clip.jpg" width="410" height="300"> <a href="https://www.youtube.com/embed/ZDYU22qNI_Q" target="_blank"><img src="http://img.youtube.com/vi/ZDYU22qNI_Q/0.jpg"  alt="euroc" width="400" height="300" border="10" /></a>
 
@@ -24,10 +24,10 @@
    - **keyboard**: please check instruction [wiki](https://github.com/JSKAerialRobot/aerial_robot/wiki/keyboard_operation)
    - **joystick**: please check instruction [wiki](https://github.com/JSKAerialRobot/aerial_robot/wiki/joystick_operation)
 
-## 3. transformation demostration
+## 3. transformation demonstration
    **note**: after the robot completely hovering with the message `Hovering!`
 
-   - defualt dragon pose: ``` $ rosrun dragon transformation_demo.py  _mode:=0```
+   - default dragon pose: ``` $ rosrun dragon transformation_demo.py  _mode:=0```
    - spiral pose: ``` $ rosrun dragon transformation_demo.py  _mode:=1```
    - m-like pose: ``` $ rosrun dragon transformation_demo.py  _mode:=2```
    - normal pose: ``` $ rosrun dragon transformation_demo.py  _reset:=1```

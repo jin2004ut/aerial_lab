@@ -20,12 +20,12 @@
   </link>
   <joint name="root_joint" type="fixed">
     <parent link="root"/>
-    <child link="main_body"/>
+    <child link="base_link"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <axis xyz="0 0 1"/>
   </joint>
-  <!-- main_body -->
-  <link name="main_body">
+  <!-- base_link -->
+  <link name="base_link">
     <inertial>
       <mass value="0.832"/>
       <origin rpy="0 0 0" xyz="0.002 0 0.026000000000000002"/>
@@ -39,38 +39,38 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0.025"/>
       <geometry>
-        <box size="0.28 0.28 0.072"/>
+        <box size="0.32 0.32 0.16"/>
       </geometry>
     </collision>
   </link>
   <joint name="main_body2fc" type="fixed">
-    <parent link="main_body"/>
+    <parent link="base_link"/>
     <child link="fc"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
   </joint>
   <link name="fc">
     <inertial>
-      <mass value="00"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
-      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+      <mass value="0.00001"/>
+      <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </link>
   <joint name="main_body2lidar_imu" type="fixed">
-    <parent link="main_body"/>
+    <parent link="base_link"/>
     <child link="lidar_imu"/>
     <origin rpy="0 0 0" xyz="0.011 0.02329 0.04538"/>
   </joint>
   <link name="lidar_imu">
     <inertial>
-      <mass value="00"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
-      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+      <mass value="0.00001"/>
+      <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
     </inertial>
   </link>
   <joint name="main_body2battery" type="fixed">
-    <parent link="main_body"/>
+    <parent link="base_link"/>
     <child link="battery"/>
     <origin rpy="1.5707963267948966 0 0" xyz="0.0 0 -0.035"/>
   </joint>
@@ -89,7 +89,7 @@
   </link>
   <joint name="rotor1" type="continuous">
     <limit effort="100.0" lower="0.0" upper="8.0" velocity="0.5"/>
-    <parent link="main_body"/>
+    <parent link="base_link"/>
     <child link="thrust1"/>
     <origin rpy="0 0 0" xyz="-0.085 -0.085 0.026"/>
     <axis xyz="0 0 -1"/>
@@ -108,7 +108,7 @@
       </geometry>
     </visual>
   </link>
-  <gazebo reference="main_body">
+  <gazebo reference="base_link">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
   <transmission name="rotor_tran1">
@@ -125,7 +125,7 @@
   </transmission>
   <joint name="rotor2" type="continuous">
     <limit effort="100.0" lower="0.0" upper="8.0" velocity="0.5"/>
-    <parent link="main_body"/>
+    <parent link="base_link"/>
     <child link="thrust2"/>
     <origin rpy="0 0 0" xyz="0.085 -0.085 0.026"/>
     <axis xyz="0 0 1"/>
@@ -144,7 +144,7 @@
       </geometry>
     </visual>
   </link>
-  <gazebo reference="main_body">
+  <gazebo reference="base_link">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
   <transmission name="rotor_tran2">
@@ -161,7 +161,7 @@
   </transmission>
   <joint name="rotor3" type="continuous">
     <limit effort="100.0" lower="0.0" upper="8.0" velocity="0.5"/>
-    <parent link="main_body"/>
+    <parent link="base_link"/>
     <child link="thrust3"/>
     <origin rpy="0 0 0" xyz="0.085 0.085 0.026"/>
     <axis xyz="0 0 -1"/>
@@ -180,7 +180,7 @@
       </geometry>
     </visual>
   </link>
-  <gazebo reference="main_body">
+  <gazebo reference="base_link">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
   <transmission name="rotor_tran3">
@@ -197,7 +197,7 @@
   </transmission>
   <joint name="rotor4" type="continuous">
     <limit effort="100.0" lower="0.0" upper="8.0" velocity="0.5"/>
-    <parent link="main_body"/>
+    <parent link="base_link"/>
     <child link="thrust4"/>
     <origin rpy="0 0 0" xyz="-0.085 0.085 0.026"/>
     <axis xyz="0 0 1"/>
@@ -216,7 +216,7 @@
       </geometry>
     </visual>
   </link>
-  <gazebo reference="main_body">
+  <gazebo reference="base_link">
     <dampingFactor>0.00</dampingFactor>
   </gazebo>
   <transmission name="rotor_tran4">

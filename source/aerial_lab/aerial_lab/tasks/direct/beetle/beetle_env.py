@@ -46,7 +46,7 @@ from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort
 
 from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.utility.noisemodel import NoiseModel  # isort: skip
-from aerial_lab.utility.utilitymath import samlpeUniformQuatwithTilt  # isort: skip
+from aerial_lab.utility.utilitymath import sampleUniformQuatwithTilt  # isort: skip
 
 PUSH_LIN_VEL = 0.3  # m/s
 PUSH_ANG_VEL = 0.3  # rad/s

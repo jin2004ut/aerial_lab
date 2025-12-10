@@ -136,6 +136,8 @@ The detailed installation process are as follows:
 
 - Clone or copy this project/repository separately from the Isaac Lab installation (i.e. outside the `IsaacLab` directory), install the library in editable mode using:
     ```bash
+    cd aerial_lab
+    git checkout -b release
     python -m pip install -e source/aerial_lab
     ```
 
@@ -176,20 +178,21 @@ The detailed installation process are as follows:
             ```
 
 ## Training
+Currently, only `Beetle-Pose-v0`, `Beetle-Omni-Pose-v0` and `Aerial-MiniQuadcopter-Pose-v0` are available, while `rsl_rl` is recommended. If you want to train your own platform, pay attention to: `assets/aerialrobot.py`, `tasks/direct/xxx` and `data/Robots/xxx`.
 
 ### Training specific task
 Start training process w/o video record
 ```bash
 # training with gui (time consuming, unrecommended!)
-python scripts/rsl_rl/train.py --task=Beetle-Direct-Pose-v0
+python scripts/rsl_rl/train.py --task=Beetle-Omni-Pose-v0
 # training without gui
-python scripts/rsl_rl/train.py --task=Beetle-Direct-Pose-v0 --headless
+python scripts/rsl_rl/train.py --task=Beetle-Omni-Pose-v0 --headless
 # training without gui , with video record
-python scripts/rsl_rl/train.py --task=Beetle-Direct-Pose-v0 --headless --video --video_length 1000 --video_interval 10000
+python scripts/rsl_rl/train.py --task=Beetle-Omni-Pose-v0 --headless --video --video_length 1000 --video_interval 10000
 ```
 ### Show Training Data
 ```bash
-tensorboard --logdir=logs/rsl_rl/beetle_direct/ --port=6006
+tensorboard --logdir=logs/rsl_rl/beetle_omni/ --port=6006
 ```
 Then, on you web browsers, view `http://localhost:6006`
 
@@ -197,16 +200,16 @@ Then, on you web browsers, view `http://localhost:6006`
 Play trained policy w/o video record
 ```bash
 # Play trained policy, (latested training)
-python scripts/rsl_rl/play.py --task=Beetle-Direct-Pose-v0 --num_envs=64
+python scripts/rsl_rl/play.py --task=Beetle-Omni-Pose-v0 --num_envs=64
 # Play trained policy with specific checkpoint
-python scripts/rsl_rl/play.py --task=Beetle-Direct-Pose-v0 --checkpoint=logs/rsl_rl/beetle_direct/2025-10-31_13-34-44/model_8000.pt --num_envs=64
+python scripts/rsl_rl/play.py --task=Beetle-Omni-Pose-v0 --checkpoint=logs/rsl_rl/beetle_omni/2025-10-31_13-34-44/model_8000.pt --num_envs=64
 ```
 To facilitate evaluate policy, you can check outcomes in `exported/` and `video/`.
 ```bash
 # Evaluate single policy
-python scripts/rsl_rl/evaluate.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --device=cpu --video --video_length=500 --checkpoint=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19/model_10000.pt --headless
+python scripts/rsl_rl/evaluate.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --device=cpu --video --video_length=500 --checkpoint=logs/rsl_rl/beetle_omni/2025-12-01_10-46-19/model_10000.pt --headless
 # Evaluate policy batch
-python scripts/rsl_rl/eval_ckpts.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --device=cpu --video --video_length=500 --run_dir=logs/rsl_rl/beetle_hyper/2025-12-01_10-46-19 --headless
+python scripts/rsl_rl/eval_ckpts.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --device=cpu --video --video_length=500 --run_dir=logs/rsl_rl/beetle_omni/2025-12-01_10-46-19 --headless
 ```
 
 
