@@ -212,6 +212,16 @@ python scripts/rsl_rl/evaluate.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --dev
 python scripts/rsl_rl/eval_ckpts.py --task=Beetle-Omni-Pose-v0 --num_envs=64 --device=cpu --video --video_length=500 --run_dir=logs/rsl_rl/beetle_omni/2025-12-01_10-46-19 --headless
 ```
 
+### Git Repository
+To facilitate the git to store training code, just modify `envs/aeriallab/lib/python3.11/site-packages/rsl_rl/utils/utils.py/store_code_state` source code as:
+```python
+with open(diff_file_name, "x", encoding="utf-8") as f:
+		# content = f"--- git status ---\n{repo.git.status()} \n\n\n--- git diff ---\n{repo.git.diff(t)}"
+            content = ( f"--- git status ---\n{repo.git.status()} \n\n"
+                        f"--- git log ---\n{repo.git.log('-1')} \n\n"
+                        f"--- git diff ---\n{repo.git.diff(t)}")
+```
+which will store current commit.
 
 Switch to log/git/diff
 ```bash
@@ -308,5 +318,5 @@ Then you can run pre-commit with:
 ```bash
 pre-commit run --all-files
 ```
-
+## [Proximal Policy Optimization](./source/aerial_lab/docs/PPO.md)
 ## [Troubleshooting](./trouble_shooting.md)

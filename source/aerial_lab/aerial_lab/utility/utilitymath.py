@@ -71,8 +71,45 @@ def sampleCenterQuatwithTilt(tile: torch.Tensor, size: int) -> torch.Tensor:
     return quats
 
 
+def sampleSymmetryQuatwithTilt(tile: torch.Tensor, size: int) -> torch.Tensor:
+    """Sample centered quaternions with tilt angle limit, more concentrated near horizontal z axis.
+
+    Args:
+        tile (torch.Tensor): Tilt angle limit in radians.
+        size (int): Number of quaternions to sample.
+
+    Returns:
+        torch.Tensor: Sampled quaternions of shape (size, 4).
+    """
+    phi = torch.rand((size), device=tile.device) * 2.0 * math.pi
+    lowCostTheta = torch.cos(tile)
+    cosTheta = torch.empty((size), device=tile.device).uniform_(float(lowCostTheta), 1.0)
+    cosTheta[::2] *= -1.0  # every other one flip
+    axisZ = torch.zeros((size, 3), device=tile.device)
+    xyL = torch.sin(torch.acos(cosTheta))
+    # import ipdb; ipdb.set_trace()
+    axisZ[:, 2] = cosTheta
+    axisZ[:, 0] = xyL * torch.cos(phi)
+    axisZ[:, 1] = xyL * torch.sin(phi)
+
+    # print("axisZ:\n", axisZ)
+    # print("norm axisZ:\n", torch.linalg.norm(axisZ, dim=-1))
+
+    X_euler = torch.asin(-axisZ[:, 0])
+    Y_euler = torch.atan2(axisZ[:, 1], axisZ[:, 2])
+    # print("X_euler:\n", X_euler)
+    # print("Y_euler:\n", Y_euler)
+    Z_euler = torch.rand((size), device=tile.device) * 2.0 * math.pi
+    # print("Z_euler:\n", Z_euler)
+    quats = quat_from_euler_xyz(roll=X_euler, pitch=Y_euler, yaw=Z_euler)
+    # print("quats:\n", quats)
+    return quats
+
+
 if __name__ == "__main__":
     tile = torch.tensor(math.pi * 0.5)
     size = 10
-    quats = samlpeUniformQuatwithTilt(tile, size)
-    print("Sampled quaternions with tilt limit:\n", quats)
+    quats = sampleUniformQuatwithTilt(tile, size)
+    print("sampleUniformQuatwithTilt:\n", quats)
+    quats = sampleCenterQuatwithTilt(tile, size)
+    print("sampleCenterQuatwithTilt:\n", quats)
