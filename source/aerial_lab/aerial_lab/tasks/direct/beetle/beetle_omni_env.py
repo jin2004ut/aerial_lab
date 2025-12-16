@@ -52,7 +52,6 @@ from isaaclab.markers import CUBOID_MARKER_CFG, BLUE_ARROW_X_MARKER_CFG  # isort
 
 from aerial_lab.actuators.rotorgroup import RotorGroup  # isort: skip
 from aerial_lab.utility.noisemodel import NoiseModel  # isort: skip
-from warp import quat  # isort: skip
 
 PUSH_LIN_VEL = 1.0  # m/s
 PUSH_ANG_VEL = 1.0  # rad/s
@@ -160,7 +159,10 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     # servo positions (4)
     # last action (8)
     observation_space = 9 + 6 + 3 + 6 + gimbal_num + action_space
+    obs_history_len = 6
+    single_obs_len = 9 + 6 + 3 + 6 + gimbal_num + action_space
     obs_vel_delay_steps = 4
+    thrust_action_delay_steps = 2
     thrust_to_torque_ratio = -0.0165  # -0.0165
     rotor_direction = [1, -1, 1, -1]  # beetle_hyper, joint urdf configuration
     contact_force_threshold = 0.1
@@ -209,9 +211,9 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
         }
 
     # # # # reward scales # # # # # # # #
-    lin_vel_reward_scale = -0.05  # Scale = 100
+    lin_vel_reward_scale = -0.02  # Scale = 100
     lin_vel_th = 3.0
-    ang_vel_reward_scale = -0.05  # -0.01       # Scale = 100
+    ang_vel_reward_scale = -0.02  # -0.01       # Scale = 100
     ang_vel_th = 6.0
     lin_vel_static_reward_scale = -0.0
     ang_vel_static_reward_scale = -0.0
@@ -408,6 +410,9 @@ class BeetleOmniEnv(DirectRLEnv):
             self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device
         )
         self._action_thrust_force = torch.zeros(self.num_envs, self.cfg.rotor_num, device=self.device)
+        self._action_thrust_force_buffer = torch.zeros(
+            self.num_envs, self.cfg.thrust_action_delay_steps, self.cfg.rotor_num, device=self.device
+        )
         self._action_gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
         self._target_thrust_force = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
         self._target_rotor_torque = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
@@ -510,6 +515,12 @@ class BeetleOmniEnv(DirectRLEnv):
         )
         self._body_ang_vel_buffer = torch.zeros(self.num_envs, self.cfg.obs_vel_delay_steps, 3, device=self.device)
         self._body_lin_vel_buffer = torch.zeros(self.num_envs, self.cfg.obs_vel_delay_steps, 3, device=self.device)
+        self._observation_buffers = torch.zeros(
+            self.num_envs,
+            self.cfg.obs_history_len,
+            self.cfg.single_obs_len,
+            device=self.device,
+        )
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         # print("Beetle robot link list: ")
         # for link in self._robot.body_names:
@@ -583,9 +594,13 @@ class BeetleOmniEnv(DirectRLEnv):
         self._action_gimbal_pos = (
             self._actions[:, : self.cfg.gimbal_num] * self.ctrlCfg.gimbal_action_scale + self._gimbal_default_pos
         )  # scale to [-1.57, 1.57] rad
-        self._action_thrust_force = (
+        _action_thrust_force = (
             self._actions[:, self.cfg.gimbal_num :] * self.ctrlCfg.thrust_action_scale + self.ctrlCfg.hover_thrust
         )  # shape: (N, 4)
+        # Apply action delay for thrust force
+        self._action_thrust_force = self._action_thrust_force_buffer[:, 0, :].clone()
+        self._action_thrust_force_buffer = torch.roll(self._action_thrust_force_buffer, shifts=-1, dims=1)
+        self._action_thrust_force_buffer[:, -1, :] = _action_thrust_force
         self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force)
         # #################################################
         # self._target_rotor_torque = (
@@ -705,9 +720,15 @@ class BeetleOmniEnv(DirectRLEnv):
         )
         clip_obs = self.ctrlCfg.clip_observations
         obs = torch.clamp(obs, -clip_obs, clip_obs)
+        # self._observation_buffers[:, 1:] = self._observation_buffers[:, :-1].clone()
+        # self._observation_buffers[:, 0] = obs
+        # obs_seq = self._observation_buffers.reshape(
+        #     self._observation_buffers.shape[0], -1
+        # )  # shape: (num_envs, obs_history_len * obs_dim)
         states = self._get_states()
         states = torch.clamp(states, -clip_obs, clip_obs)
         observations = {"policy": obs, "critic": states}
+        # observations = {"policy": obs_seq, "critic": states}
         return observations
 
     def _get_states(self) -> torch.Tensor:
@@ -735,8 +756,8 @@ class BeetleOmniEnv(DirectRLEnv):
                 root_rot_vec,
                 goal_rot_vec,
                 self._last_actions,
-                target_thrust_force,
-                target_rotor_torque,
+                # target_thrust_force,
+                # target_rotor_torque,
             ),
             dim=-1,
         )
@@ -933,9 +954,8 @@ class BeetleOmniEnv(DirectRLEnv):
 
         quat_sample_rate = (
             1000 * self.cfg.num_steps_per_env / self.cfg.max_curricular_steps
-            + max(self.common_step_counter - 500 * self.cfg.num_steps_per_env, 0)
+            + max(self.common_step_counter - 0 * self.cfg.num_steps_per_env, 0)
             / self.cfg.max_curricular_steps
-            * 2
             * 0.6
         )
         quat_sample_rate = min(quat_sample_rate, 0.6)
@@ -969,7 +989,7 @@ class BeetleOmniEnv(DirectRLEnv):
         pos_sample_rate = max(pos_sample_rate, 0.0)
 
         if self.cfg.play_mode or self.cfg.evaluate_mode:
-            quat_sample_rate = 1.0
+            quat_sample_rate = 0.1
             pos_sample_rate = 1.0
             dof_sample_rate = 1.0
             if self.ctrlCfg.ang_reset_rate > 0.0:
@@ -1041,6 +1061,7 @@ class BeetleOmniEnv(DirectRLEnv):
         self._last_actions[env_ids] = 0.0
         self._action_gimbal_pos[env_ids] = 0.0
         self._action_thrust_force[env_ids] = 0.0
+        self._observation_buffers[env_ids] = 0.0
 
         self._position_error[env_ids] = 0.0
         self._angle_error[env_ids] = 0.0
@@ -1095,11 +1116,15 @@ class BeetleOmniEnv(DirectRLEnv):
         joint_pos = self._robot.data.default_joint_pos[env_ids]
         joint_vel = self._robot.data.default_joint_vel[env_ids]
         joint_gimbal_pos = joint_pos[:, self._gimbal_ids[0]]
-        joint_gimbal_pos[0::4, :] = self.randomCfg.dof_range
-        joint_gimbal_pos[1::4, :] = -self.randomCfg.dof_range
-        joint_gimbal_pos[2::4, :] = 0.0
-        joint_gimbal_pos[3::4, :] = (
-            torch.randint_like(joint_gimbal_pos[3::4, :], low=-1, high=2).to(torch.float32) * self.randomCfg.dof_range
+        joint_gimbal_pos[0::6, :] = self.randomCfg.dof_range
+        joint_gimbal_pos[1::6, :] = -self.randomCfg.dof_range
+        joint_gimbal_pos[2::6, :] = 0.0
+        joint_gimbal_pos[3::6, :] = 0.0
+        joint_gimbal_pos[4::6, :] = (
+            torch.randint_like(joint_gimbal_pos[4::6, :], low=-1, high=2).to(torch.float32) * self.randomCfg.dof_range
+        )
+        joint_gimbal_pos[5::6, :] = (
+            torch.randint_like(joint_gimbal_pos[5::6, :], low=-1, high=2).to(torch.float32) * self.randomCfg.dof_range
         )
         joint_pos[:, self._gimbal_ids[0]] = joint_gimbal_pos
 
