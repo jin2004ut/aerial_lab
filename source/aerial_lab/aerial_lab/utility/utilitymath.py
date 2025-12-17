@@ -106,10 +106,54 @@ def sampleSymmetryQuatwithTilt(tile: torch.Tensor, size: int) -> torch.Tensor:
     return quats
 
 
+def sampleSymmetryQuatwithTiltforEnv(tile: torch.Tensor, size: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """Sample uniform quaternions with tilt angle limit for each environment.
+
+    Args:
+        tile (torch.Tensor): Tilt angle limit in radians for each environment.
+        size (int): Number of quaternions to sample.
+
+    Returns:
+        tuple[torch.Tensor, torch.Tensor]:
+            - Sampled quaternions of shape (size, 4).
+            - Cosine of the tilt angle of shape (size,).
+    """
+    phi = torch.rand((size), device=tile.device) * 2.0 * math.pi
+
+    # sample theta in [0, tile] => cos(theta) in [cos(tile), 1.0]
+    min_cos = torch.cos(tile)
+    r = torch.rand((size), device=tile.device)
+    cosTheta = min_cos + r * (1.0 - min_cos)
+
+    # symmetry: inverse the range of 50% [-1.0, -cos(tile)]
+    # get inverse z axis
+    flip_mask = torch.rand((size), device=tile.device) < 0.5
+    cosTheta[flip_mask] *= -1.0
+
+    axisZ = torch.zeros((size, 3), device=tile.device)
+    # sqrt(1-cos^2) => sin, sin(acos()) more stable
+    xyL = torch.sqrt((1.0 - cosTheta.pow(2)).clamp(min=0.0))
+
+    axisZ[:, 2] = cosTheta
+    axisZ[:, 0] = xyL * torch.cos(phi)
+    axisZ[:, 1] = xyL * torch.sin(phi)
+
+    X_euler = torch.asin(-axisZ[:, 0])
+    Y_euler = torch.atan2(axisZ[:, 1], axisZ[:, 2])
+
+    Z_euler = torch.rand((size), device=tile.device) * 2.0 * math.pi
+
+    quats = quat_from_euler_xyz(roll=X_euler, pitch=Y_euler, yaw=Z_euler)
+    return quats, cosTheta
+
+
 if __name__ == "__main__":
-    tile = torch.tensor(math.pi * 0.5)
+    tile = torch.tensor(math.pi * 0.1)
     size = 10
-    quats = sampleUniformQuatwithTilt(tile, size)
-    print("sampleUniformQuatwithTilt:\n", quats)
-    quats = sampleCenterQuatwithTilt(tile, size)
-    print("sampleCenterQuatwithTilt:\n", quats)
+    # quats = sampleUniformQuatwithTilt(tile, size)
+    # print("sampleUniformQuatwithTilt:\n", quats)
+    # quats = sampleCenterQuatwithTilt(tile, size)
+    # print("sampleCenterQuatwithTilt:\n", quats)
+    quats, cosTheta = sampleSymmetryQuatwithTiltforEnv(tile, size)
+    print("sampleSymmetryQuatwithTilt:\n", quats)
+    print("cosTheta:\n", cosTheta)
