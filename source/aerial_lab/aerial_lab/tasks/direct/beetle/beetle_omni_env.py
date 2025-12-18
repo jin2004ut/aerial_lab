@@ -140,6 +140,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     num_steps_per_env = 48
     play_mode = False
     evaluate_mode = False
+    curriculum_mode = False
     add_noise = True
     add_randomization = True
     episode_length_s = 12.0
@@ -241,8 +242,8 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
         }
 
     # # # # reward scales # # # # # # # #
-    lin_vel_reward_scale = -0.05  # Scale = 100
-    ang_vel_reward_scale = -0.025  # -0.01       # Scale = 100
+    lin_vel_reward_scale = -0.03  # Scale = 100
+    ang_vel_reward_scale = -0.05  # -0.01       # Scale = 100
     # reach_lin_vel_reward_scale = -0.05
     # reach_ang_vel_reward_scale = -0.1
     thrust_power_reward_scale = -1.0e-5  # -1.0e-4  # Scale = ave(10)^2*4 = 400
@@ -251,7 +252,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     # quat_error_to_goal_reward_scale = -6.0
     angular_to_goal_reward_scale = 2.0  # Scale = 1.0
 
-    died_reward_scale = -1.5
+    died_reward_scale = -1.0
     reach_goal_reward_scale = 0.75  # Scale = 4.0
     reach_pos_reward_scale = 1.0  # Scale = 2.0
 
@@ -266,7 +267,7 @@ class BeetleOmniEnvCfg(DirectRLEnvCfg):
     thrust_limit = control.thrust_limit * 0.9
     thrust_uneven_reward_scale = -1.0e-5  # -1.0e-9
 
-    align_zaxis_reward_scale = -0.01  # prompt reverse flight
+    align_zaxis_reward_scale = -0.1  # prompt reverse flight
 
     # # # # Noise Configuration
     noiseCfg = {
@@ -432,6 +433,7 @@ class BeetleOmniEnv(DirectRLEnv):
         self._last_actions = torch.zeros(
             self.num_envs, gym.spaces.flatdim(self.single_action_space), device=self.device
         )
+        self._action_thrust_force_delayed = torch.zeros(self.num_envs, self.cfg.rotor_num, device=self.device)
         self._action_thrust_force = torch.zeros(self.num_envs, self.cfg.rotor_num, device=self.device)
         self._action_gimbal_pos = torch.zeros(self.num_envs, self.cfg.gimbal_num, device=self.device)
         self._target_thrust_force = torch.zeros(self.num_envs, self.cfg.rotor_num, 3, device=self.device)
@@ -608,12 +610,12 @@ class BeetleOmniEnv(DirectRLEnv):
         self._action_gimbal_pos = (
             self._actions[:, : self.cfg.gimbal_num] * self.ctrlCfg.gimbal_action_scale + self._gimbal_default_pos
         )  # scale to [-1.57, 1.57] rad
-        _action_thrust_force = (
+        self._action_thrust_force = (
             self._actions[:, self.cfg.gimbal_num :] * self.ctrlCfg.thrust_action_scale + self.ctrlCfg.hover_thrust
         )  # shape: (N, 4)
         # Apply action delay for thrust force
-        self._action_thrust_force = self._actThrustDelayModel.update(_action_thrust_force)
-        self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force)
+        self._action_thrust_force_delayed = self._actThrustDelayModel.update(self._action_thrust_force)
+        self._target_thrust_force, self._target_rotor_torque = self._rotors.forward(self._action_thrust_force_delayed)
         # #################################################
         # self._target_rotor_torque = (
         #     self.cfg.thrust_to_torque_ratio
@@ -976,12 +978,14 @@ class BeetleOmniEnv(DirectRLEnv):
         reach_quat_level = torch.abs(self._desired_tile_angle_cos) <= torch.cos(
             (self._desired_curriculum_level - 0.05) * self.ctrlCfg.body_ang
         )
-        self._desired_curriculum_level += (
-            0.05 * self._reach_goal_ids.to(torch.float32) * reach_quat_level.to(torch.float32)
-        )
-        self._desired_curriculum_level = torch.clamp(self._desired_curriculum_level, 0.0, 0.55)
-        if torch.sum(self._desired_curriculum_level > 0.50) > 0.90 * self.num_envs:
-            self._desired_curriculum_level[env_ids] = 0.05
+        if self.cfg.curriculum_mode:
+            self._desired_curriculum_level += (
+                0.05 * self._reach_goal_ids.to(torch.float32) * reach_quat_level.to(torch.float32)
+            )
+            self._desired_curriculum_level = torch.clamp(self._desired_curriculum_level, 0.0, 0.55)
+            if torch.sum(self._desired_curriculum_level > 0.50) > 0.90 * self.num_envs:
+                self._desired_curriculum_level[env_ids] = 0.05
+
         # quat_sample_rate = (
         #     (self.common_step_counter) / self.cfg.ang_target_curricular_steps_0 * 0.5
         # )
@@ -994,7 +998,7 @@ class BeetleOmniEnv(DirectRLEnv):
         # start from 0.3, reach 0.8
         pos_sample_rate = (
             2000 * self.cfg.num_steps_per_env / self.cfg.max_curricular_steps
-            + (self.common_step_counter) / self.cfg.max_curricular_steps * 4
+            + (self.common_step_counter) / self.cfg.max_curricular_steps * 6.0
         )  # start from 0.1, reach 0.6
         success_flags = self._reach_goal  # success flags
         self._success_window = torch.cat([self._success_window, success_flags])[-self._success_window_size :]
@@ -1019,7 +1023,7 @@ class BeetleOmniEnv(DirectRLEnv):
         quat_sample_rate = min(quat_sample_rate, 1.0)
         pos_sample_rate = min(pos_sample_rate, 1.0)
         dof_sample_rate = min(dof_sample_rate, 1.0)
-        # quat_sample_rate = 1.0
+        quat_sample_rate = 1.0
         # pos_sample_rate = 1.0
         self._quat_sample_rate = quat_sample_rate
         self._pos_sample_rate = pos_sample_rate
@@ -1172,14 +1176,20 @@ class BeetleOmniEnv(DirectRLEnv):
             joint_gimbal_pos[idx_3, :] = 0.0
         if len(idx_4) > 0:
             # Case 4: Random discrete {-1, 0, 1} * dof_range
-            joint_gimbal_pos[idx_4, :] = torch.empty_like(joint_gimbal_pos[idx_4, :]).uniform_(
-                -self.randomCfg.dof_range, self.randomCfg.dof_range
-            )
+            joint_gimbal_pos[idx_4, :] = torch.randint(
+                low=-1, high=2, size=(len(idx_4), joint_gimbal_pos.shape[1]), device=self.device
+            ) * self.randomCfg.dof_range
+            # joint_gimbal_pos[idx_4, :] = torch.empty_like(joint_gimbal_pos[idx_4, :]).uniform_(
+            #     -self.randomCfg.dof_range, self.randomCfg.dof_range
+            # )
         if len(idx_5) > 0:
             # Case 5: Random discrete {-1, 0, 1} * dof_range
-            joint_gimbal_pos[idx_5, :] = torch.empty_like(joint_gimbal_pos[idx_5, :]).uniform_(
-                -self.randomCfg.dof_range, self.randomCfg.dof_range
-            )
+            joint_gimbal_pos[idx_5, :] = torch.randint(
+                low=-1, high=2, size=(len(idx_5), joint_gimbal_pos.shape[1]), device=self.device
+            ) * self.randomCfg.dof_range
+            # joint_gimbal_pos[idx_5, :] = torch.empty_like(joint_gimbal_pos[idx_5, :]).uniform_(
+            #     -self.randomCfg.dof_range, self.randomCfg.dof_range
+            # )
         joint_pos[:, self._gimbal_ids[0]] = joint_gimbal_pos
 
         # joint_gimbal_pos = joint_pos[:, self._gimbal_ids[0]]
@@ -1237,10 +1247,15 @@ class BeetleOmniEnv(DirectRLEnv):
             # self._desired_quat_w[env_ids] = sampleSymmetryQuatwithTilt(torch.tensor(ang_range), len(env_ids)).to(
             #     self.device
             # )
-            ang_ranges = self._desired_curriculum_level[env_ids] * torch.tensor(self.ctrlCfg.body_ang).to(self.device)
-            self._desired_quat_w[env_ids], self._desired_tile_angle_cos[env_ids] = sampleSymmetryQuatwithTiltforEnv(
-                ang_ranges, len(env_ids)
-            )
+            if self.cfg.curriculum_mode:
+                ang_ranges = self._desired_curriculum_level[env_ids] * torch.tensor(self.ctrlCfg.body_ang).to(self.device)
+                self._desired_quat_w[env_ids], self._desired_tile_angle_cos[env_ids] = sampleSymmetryQuatwithTiltforEnv(
+                    ang_ranges, len(env_ids)
+                )
+            else:
+                self._desired_quat_w[env_ids] = sampleSymmetryQuatwithTilt(torch.tensor(ang_range), len(env_ids)).to(
+                    self.device
+                )
             self._desired_pos_w[env_ids, :2] = torch.empty_like(self._desired_pos_w[env_ids, :2]).uniform_(
                 -pos_range, pos_range
             )
@@ -1254,15 +1269,14 @@ class BeetleOmniEnv(DirectRLEnv):
             default_root_state[:, 3:7] = sampleUniformQuatwithTilt(
                 torch.tensor(self.randomCfg.body_ang), len(env_ids)
             ).to(self.device)
-            # Linear velocity
-            default_root_state[:, 7:10] = (
-                torch.empty_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
-            )
-            # Angular velocity
-            default_root_state[:, 10:13] = (
-                torch.empty_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
-            )
-
+            # # Linear velocity
+            # default_root_state[:, 7:10] = (
+            #     torch.empty_like(default_root_state[:, 7:10]).uniform_(-1, 1) * self.randomCfg.lin_vel
+            # )
+            # # Angular velocity
+            # default_root_state[:, 10:13] = (
+            #     torch.empty_like(default_root_state[:, 10:13]).uniform_(-1, 1) * self.randomCfg.ang_vel
+            # )
         self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
         self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
         self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
