@@ -716,14 +716,14 @@ class BeetleOmniEnv(DirectRLEnv):
 
         obs = torch.cat(
             (
-                root_lin_vel_b * self.obsScales.lin_vel,
-                root_ang_vel_b * self.obsScales.ang_vel,
                 # projected_gravity_b,
                 goal_pos_b,
                 gimbal_pos,
                 root_rot_vec,
                 goal_rot_vec,
                 self._last_actions,
+                root_lin_vel_b * self.obsScales.lin_vel,
+                root_ang_vel_b * self.obsScales.ang_vel,
             ),
             dim=-1,
         )
@@ -757,8 +757,6 @@ class BeetleOmniEnv(DirectRLEnv):
 
         states = torch.cat(
             (
-                self._robot.data.root_lin_vel_b * self.obsScales.lin_vel,
-                self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
                 # self._robot.data.projected_gravity_b,
                 goal_pos_b,
                 self._robot.data.joint_pos[:, self._gimbal_ids[0]] - self._gimbal_default_pos,
@@ -767,6 +765,8 @@ class BeetleOmniEnv(DirectRLEnv):
                 self._last_actions,
                 target_thrust_force,
                 target_rotor_torque,
+                self._robot.data.root_lin_vel_b * self.obsScales.lin_vel,
+                self._robot.data.root_ang_vel_b * self.obsScales.ang_vel,
             ),
             dim=-1,
         )
