@@ -138,6 +138,47 @@ class Rotor:
         self.torque[:, 2] = self.rotor_direction * self.thrust_to_torque_ratio * self.foc
 
 
+class RotorCfg:
+    """
+    Configuration class for RotorGroup.
+    """
+
+    def __init__(
+        self,
+        rotor_num: int,
+        dt: float,
+        mode: str,
+        thrust_coeff: float | Sequence[float],
+        torque_coeff: float | Sequence[float],
+        max_vel: float | Sequence[float],
+        max_foc: float | Sequence[float],
+        vel_wn: float | Sequence[float] | None = 0.0,
+        vel_zeta: float | Sequence[float] | None = 0.0,
+        vel_tau: float | Sequence[float] | None = 0.0,
+        vel_ord: int | None = None,
+        foc_wn: float | Sequence[float] | None = 0.0,
+        foc_zeta: float | Sequence[float] | None = 0.0,
+        foc_tau: float | Sequence[float] | None = 0.0,
+        foc_ord: int | None = None,
+        randomize_ratio: float | None = None,
+    ):
+        self.rotor_num = rotor_num
+        self.dt = dt
+        self.mode = mode
+        self.thrust_coeff = thrust_coeff
+        self.torque_coeff = torque_coeff
+        self.max_vel = max_vel
+        self.max_foc = max_foc
+        self.vel_wn = vel_wn
+        self.vel_zeta = vel_zeta
+        self.vel_tau = vel_tau
+        self.foc_wn = foc_wn
+        self.foc_zeta = foc_zeta
+        self.foc_tau = foc_tau
+        if randomize_ratio is not None:
+            self.randomize_ratio = randomize_ratio
+
+
 class RotorGroup(nn.Module):
     """
     Rotor dynamics simulator for multi-rotor systems.
@@ -217,6 +258,7 @@ class RotorGroup(nn.Module):
             self.register_buffer("foc_wn", self._expand_param(cfg["foc_wn"], "foc_wn", dtype=torch.float32))
             self.register_buffer("foc_zeta", self._expand_param(cfg["foc_zeta"], "foc_zeta", dtype=torch.float32))
             # self.register_buffer("foc_tau", self._expand_param(cfg["foc_tau"], "foc_tau", dtype=torch.float32))
+            # self.foc_tau = self.foc_tau * torch.empty_like(self.max_foc).fill_(1.0).uniform_(0.95, 1.05)
 
         self.register_buffer("vel", torch.zeros((self.num_envs, self.num_rotors), device=self.device))
         self.register_buffer("vel_dot", torch.zeros((self.num_envs, self.num_rotors), device=self.device))
@@ -327,6 +369,14 @@ class RotorGroup(nn.Module):
         # x = torch.clamp(x + xdot * self.dt, min=torch.zeros_like(self.max_foc), max=self.max_foc)
         # self.foc.copy_(x)
         # self.foc_dot.copy_(xdot)
+        # foc_cmd = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
+        # tau = self.foc_tau
+        # foc = self.foc
+        # a = torch.exp(-self.dt / tau)
+        # b = 1.0 - a
+        # x = a * foc + b * foc_cmd
+        # x = torch.clamp(x, min=torch.zeros_like(self.max_foc), max=self.max_foc)
+        # self.foc.copy_(x)
 
         # # # # ideal system
         x = torch.clamp(foc_cmd, min=torch.zeros_like(self.max_foc), max=self.max_foc)
@@ -364,7 +414,7 @@ if __name__ == "__main__":
     cfg = {
         "rotor_num": 4,
         "dt": 0.01,
-        "mode": "vel",
+        "mode": "foc",
         "thrust_coeff": 1,
         "torque_coeff": 0.1,
         "randomize_ratio": 0.05,
@@ -374,6 +424,7 @@ if __name__ == "__main__":
         "vel_zeta": 0.8,
         "foc_wn": 1.0,
         "foc_zeta": 0.8,
+        "foc_tau": 0.0942,
     }
 
     rotor_directions = torch.tensor([1.0, -1.0, -1.0, 1.0])
