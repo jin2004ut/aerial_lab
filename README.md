@@ -1,11 +1,31 @@
 # Articulated Aerial Robot IsaacLab Environments
+This is a project for Reinforcement Learning of Articulated Aerial Robot (AAR). Currently, the aerial robots are mainly from [DRAGON Lab](http://www.dragon.t.u-tokyo.ac.jp/). We hope to build a systematic project to solve motion planning and control problems of AARs.
+
+## Research Work: 
+
+### Learning Agile and Robust Omnidirectional Aerial Motion on Overactuated Tiltable-Quadrotors
+![framework](/source/aerial_lab/docs/overframework.png)
+```
+@article{zhang2026omnirl,
+  title   = {Learning Agile and Robust Omnidirectional Aerial Motion
+             on Overactuated Tiltable-Quadrotors},
+  author  = {Wentao Zhang and Zhaoqi Ma and Jinjie Li and Huayi Wang and Haokun Liu
+             and Junichiro Sugihara and Chen Chen and Yicheng Chen and Moju Zhao},
+  year={2026},
+  eprint={2602.21583},
+  archivePrefix={arXiv},
+  primaryClass={cs.RO},
+  url={https://arxiv.org/abs/2602.21583},
+}
+```
+You can access platform-related code on [jsk_aerial_robot](https://github.com/ZWT006/jsk_aerial_robot), where you can try our controller in the Gazebo simulation by following the instructions in `robots/beetle_omni/policy/README.md`.
 
 ## Overview
 This project/repository is an isolated environment, outside of the core Isaac Lab repository.
 ```yaml
 Aerial_Lab
 ├── .vscode
-├── logs    # training recoreds
+├── logs    # training records
 │   ├── rsl_rl
 │   │   ├── TASK-NAME
 │   │   │   ├── {year}-{month}-{day}_{hour}-{minute}-{second}
@@ -23,7 +43,7 @@ Aerial_Lab
 │   ├── rl_games        # rl_games rl library
 │   ├── rsl_rl          # rsl rl library (commonly used)
 │   ├── skrl            # skrl rl library
-│   ├── clean_trash.py  # clean all training recoreds, use carefully
+│   ├── clean_trash.py  # clean all training records, use carefully
 │   ├── debug_agent.py  # customed debug
 │   ├── list_envs.py    # list all available envs
 │   ├── random_agent.py # set action = rand, for debug
@@ -62,7 +82,7 @@ Aerial_Lab
 ├── .flake8             # python format configuration
 ├── .gitattributes
 ├── .gitignore          # neglect unnecessary files
-├── .pre-commit-connfig.yaml
+├── .pre-commit-config.yaml
 ├── README.md           # Project Overview
 └── Trouble_shooting.md # Some common problems and how to handle
 ```
@@ -70,7 +90,10 @@ Aerial_Lab
 ### Available Environments
 | S. No. |         Task Name       |      Entry Point   |         Config        |
 |--------|-------------------------|--------------------|-----------------------|
-|   1    | Aerial-Template-Direct-v0            | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env:AerialLabEnv               | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env_cfg:AerialLabEnvCfg               |
+|   1    | Aerial-MiniQuadcopter-Pose-v0         | aerial_lab.tasks.direct.quadcopter.mini_quadcopter_env:MiniQuadcopterEnv                          | aerial_lab.tasks.direct.quadcopter.mini_quadcopter_env:MiniQuadcopterEnvCfg                              |
+|   2    | Beetle-Pose-v0         | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnv                          | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnvCfg                              |
+|   3    | Beetle-Omni-Pose-v0         | aerial_lab.tasks.direct.beetle.beetle_omni_env:BeetleEnv                          | aerial_lab.tasks.direct.beetle.beetle_omni_env:BeetleOmniEnvCfg                              |
+<!-- |   1    | Aerial-Template-Direct-v0            | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env:AerialLabEnv               | aerial_lab.tasks.direct.aerial_lab.aerial_lab_env_cfg:AerialLabEnvCfg               |
 |   2    | Aerial-Template-Marl-Direct-v0       | aerial_lab.tasks.direct.aerial_lab_marl.aerial_lab_marl_env:AerialLabMarlEnv | aerial_lab.tasks.direct.aerial_lab_marl.aerial_lab_marl_env_cfg:AerialLabMarlEnvCfg |
 |   3    | Beetle-Direct-Pose-v0         | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnv                          | aerial_lab.tasks.direct.beetle.beetle_env:BeetleEnvCfg                              |
 |   4    | Beetle-Direct-Pose-DEBUG-v0   | aerial_lab.tasks.direct.beetle.beetle_env_debug:BeetleEnv                    | aerial_lab.tasks.direct.beetle.beetle_env_debug:BeetleEnvCfg                        |
@@ -81,13 +104,12 @@ Aerial_Lab
 |   9    | Aerial-Velocity-Rough-Unitree-A1-v0  | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.a1.rough_env_cfg:UnitreeA1RoughEnvCfg                |
 |   10   | Aerial-Template-v0                   | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.aerial_lab.aerial_lab_env_cfg:AerialLabEnvCfg        |
 |   11   | Aerial-Velocity-Flat-Unitree-Go1-v0  | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.go1.flat_env_cfg:UnitreeGo1FlatEnvCfg                |
-|   12   | Aerial-Velocity-Rough-Unitree-Go1-v0 | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.go1.rough_env_cfg:UnitreeGo1RoughEnvCfg             |
+|   12   | Aerial-Velocity-Rough-Unitree-Go1-v0 | isaaclab.envs:ManagerBasedRLEnv                                              | aerial_lab.tasks.manager_based.go1.rough_env_cfg:UnitreeGo1RoughEnvCfg             | -->
 
 ### Dependence
 1. [Isaac Sim](https://isaac-sim.github.io/IsaacLab/release/v2.2.1/source/setup/installation/index.html) `5.0.0`
 2. [Isaac Lab](https://github.com/isaac-sim/IsaacLab) `2.2.1`
 3. [onnxruntime]`onnxruntime-1.16.3-cp38` for `{robot}_deploy.py`
-
 
 
 **Key Features:**
@@ -100,7 +122,7 @@ Aerial_Lab
 ## Installation
 
 ### Nvidia Driver
-Older version nvidia-driver cannot support high version cuda. It is recommended to install your gpu driber more than `570`
+Older NVIDIA driver versions may not support newer CUDA versions. It is recommended to install a GPU driver version `570` or higher.
 
 ### Isaac Lab
 Install Isaac Lab by following the [installation guide : release 2.2.1](https://isaac-sim.github.io/IsaacLab/release/v2.2.1/source/setup/installation/index.html).
@@ -114,12 +136,12 @@ The detailed installation process are as follows:
     conda activate aeriallab
     ```
 
-- Install dependemces
+- Install dependencies
     ```bash
     pip install --upgrade pip
     pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128
     pip install "isaacsim[all,extscache]==5.0.0" --extra-index-url https://pypi.nvidia.com
-    # Verifying Isaac Sim, it may consume a long time in first launch, also encounter `force quite`, just wait
+    # Verifying Isaac Sim, it may consume a long time in first launch, also encounter `force quit`, just wait
     isaacsim
     ```
 
@@ -130,7 +152,7 @@ The detailed installation process are as follows:
     git checkout -b aeriallab 47780cf02dae94410cfed81706c8c859eeeacd76
     sudo apt install cmake build-essential
     ./isaaclab.sh --install rl_games rsl_rl sb3 skrl robomimic # rl libraries
-    # verifying Isaac Lab, it may consume a long time in first launch, also encounter `force quite`, just wait
+    # verifying Isaac Lab, it may consume a long time in first launch, also encounter `force quit`, just wait
     python scripts/tutorials/00_sim/create_empty.py
     ```
 
@@ -145,7 +167,7 @@ The detailed installation process are as follows:
 
     - Listing the available tasks:
 
-        Note: It the task name changes, it may be necessary to update the search pattern `"Template-"`
+        Note: If the task name changes, it may be necessary to update the search pattern `"Template-"`
         (in the `scripts/list_envs.py` file) so that it can be listed.
 
         ```bash
@@ -178,7 +200,7 @@ The detailed installation process are as follows:
             ```
 
 ## Training
-Currently, only `Beetle-Pose-v0`, `Beetle-Omni-Pose-v0` and `Aerial-MiniQuadcopter-Pose-v0` are available, while `rsl_rl` is recommended. If you want to train your own platform, pay attention to: `assets/aerialrobot.py`, `tasks/direct/xxx` and `data/Robots/xxx`.
+Currently, only `Beetle-Pose-v0`, `Beetle-Omni-Pose-v0` and `Aerial-MiniQuadcopter-Pose-v0` are available, while `rsl_rl` is recommended. If you want to train your own platform, pay attention to: `assets/aerialrobot.py`, `tasks/direct/xxx` and `data/Robots/xxx`. You can also access other AARs' model files on `data/Robots`
 
 ### Training specific task
 Start training process w/o video record
@@ -194,12 +216,12 @@ python scripts/rsl_rl/train.py --task=Beetle-Omni-Pose-v0 --headless --video --v
 ```bash
 tensorboard --logdir=logs/rsl_rl/beetle_omni/ --port=6006
 ```
-Then, on you web browsers, view `http://localhost:6006`
+Then, in your web browser, view `http://localhost:6006`
 
 ### Review training result
 Play trained policy w/o video record
 ```bash
-# Play trained policy, (latested training)
+# Play trained policy (latest checkpoint)
 python scripts/rsl_rl/play.py --task=Beetle-Omni-Pose-v0 --num_envs=64
 # Play trained policy with specific checkpoint
 python scripts/rsl_rl/play.py --task=Beetle-Omni-Pose-v0 --checkpoint=logs/rsl_rl/beetle_omni/2025-10-31_13-34-44/model_8000.pt --num_envs=64
@@ -243,7 +265,7 @@ The file contains the python paths to all the extensions provided by Isaac Sim a
 This helps in indexing all the python modules for intelligent suggestions while writing code.
 
 ### URDF Visualizer
-isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`. So, we recommend to get `.urdf` file.
+Isaac Sim provides an importer for `.urdf` to convert to `.usd`, but not for `.xacro`. Therefore, we recommend obtaining the `.urdf` file directly.
 - convert `.xacro` to `.urdf`
     ```bash
     # 1. install tools
@@ -271,7 +293,7 @@ isaacsim provide importer for `.urdf` to convert to `.usd` but not for `.xacro`.
         }
     ```
 
-- click `eye` symble on the right corner of `.urdf` or `.xacro` file.
+- Click the `eye` symbol on the right corner of the `.urdf` or `.xacro` file.
 
 ### Setup as Omniverse Extension (Optional)
 
@@ -283,7 +305,7 @@ To enable your extension, follow these steps:
     - Navigate to the extension manager using `Window` -> `Extensions`.
     - Click on the **Hamburger Icon**, then go to `Settings`.
     - In the `Extension Search Paths`, enter the absolute path to the `source` directory of this project/repository.
-    - If not already present, in the `Extension Search Paths`, enter the path that leads to Isaac Lab's extension directory directory (`IsaacLab/source`)
+    - If not already present, in the `Extension Search Paths`, enter the path that leads to Isaac Lab's extension directory (`IsaacLab/source`)
     - Click on the **Hamburger Icon**, then click `Refresh`.
 
 2. **Search and enable your extension**:
@@ -318,5 +340,8 @@ Then you can run pre-commit with:
 ```bash
 pre-commit run --all-files
 ```
-## [Proximal Policy Optimization](./source/aerial_lab/docs/PPO.md)
 ## [Troubleshooting](./trouble_shooting.md)
+
+Research related questions, please contact Prof. Zhao at `chou@dragon.t.u-tokyo.ac.jp`
+Code related questions, please contact `wentao-zhang@dragon.t.u-tokyo.ac.jp`
+
