@@ -1,0 +1,116 @@
+# Isaac Sim Tutorials for Aerial Lab
+
+This directory is the starting point for learning Isaac Sim before moving on to Isaac Lab environments or RL training.
+
+## Learning order
+
+1. `isaac_sim/00_create_empty.py`
+2. `isaac_sim/01_add_scene.py`
+3. `isaac_sim/02_spawn_robot.py`
+4. `isaac_sim/03_step_robot.py`
+5. `isaac_sim/04_read_robot_state.py`
+6. `isaac_sim/05_add_imu_sensor.py`
+7. `isaac_sim/06_compare_root_vs_imu.py`
+8. `isaac_sim/07_compare_control_modes.py`
+9. `isaac_sim/08_build_observation.py`
+10. `isaac_sim/09_reset_and_randomize.py`
+11. `isaac_sim/10_add_contact_sensor.py`
+
+## Run examples
+
+Run these from `/workspace/aerial_lab` inside the container or from a Python environment where Isaac Sim, Isaac Lab, and `aerial_lab` are installed.
+
+```bash
+python tutorials/isaac_sim/00_create_empty.py --headless
+python tutorials/isaac_sim/01_add_scene.py
+python tutorials/isaac_sim/02_spawn_robot.py --robot mini_quad
+python tutorials/isaac_sim/03_step_robot.py --robot mini_quad --steps 600
+python tutorials/isaac_sim/04_read_robot_state.py --robot mini_quad --steps 240 --print_every 60
+python tutorials/isaac_sim/05_add_imu_sensor.py --robot mini_quad --steps 240 --print_every 60
+python tutorials/isaac_sim/06_compare_root_vs_imu.py --robot mini_quad --steps 240 --print_every 60
+python tutorials/isaac_sim/07_compare_control_modes.py --robot beetle --mode position --steps 600
+python tutorials/isaac_sim/08_build_observation.py --steps 240 --print_every 60
+python tutorials/isaac_sim/09_reset_and_randomize.py --episodes 5
+python tutorials/isaac_sim/10_add_contact_sensor.py --robot mini_quad --steps 300 --print_every 30
+```
+
+## What you will learn
+
+- `00_create_empty.py`: how to start Isaac Sim from a Python script.
+- `01_add_scene.py`: how to create a minimal scene with ground and lighting.
+- `02_spawn_robot.py`: how to spawn one of Aerial Lab's robot assets into the scene.
+- `03_step_robot.py`: how to step physics, reset state, and send simple joint commands.
+- `04_read_robot_state.py`: how to read root pose, body velocity, joint state, and IMU-like quantities.
+- `05_add_imu_sensor.py`: how to instantiate a real `Imu` sensor object and compare its outputs with robot state tensors.
+- `06_compare_root_vs_imu.py`: how to compare root-body signals, IMU-link signals, and IMU sensor outputs side by side.
+- `07_compare_control_modes.py`: how actions enter the simulator through joint targets or external forces.
+- `08_build_observation.py`: how an RL observation is assembled from state tensors.
+- `09_reset_and_randomize.py`: how reset logic and state randomization are implemented.
+- `10_add_contact_sensor.py`: how to instantiate a contact sensor and read collision forces.
+
+## Reading guide
+
+For `02_spawn_robot.py` and `03_step_robot.py`, the files now include extra inline comments so you can read them almost line by line.
+
+The key mental model for `03_step_robot.py` is:
+
+1. `SimulationCfg(...)`: choose physics settings such as timestep and device.
+2. `SimulationContext(...)`: create the object that owns the live physics world.
+3. `Articulation(...)`: turn a robot asset config into a runtime robot object.
+4. `write_*_to_sim(...)`: push state or commands into the simulator.
+5. `sim.step()`: advance physics by one step.
+6. `robot.update(...)`: pull the resulting state back into `robot.data.*`.
+
+## Where This Maps Into Aerial Lab
+
+If you want to connect each tutorial back to the actual RL environments, these are the best entry points:
+
+- `02_spawn_robot.py` / `03_step_robot.py`
+  - robot asset definitions:
+    [source/aerial_lab/aerial_lab/assets/aerialrobot.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/assets/aerialrobot.py)
+- `04_read_robot_state.py`
+  - root/body state usage in observations:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
+  - another direct aerial example:
+    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:611)
+- `05_add_imu_sensor.py`
+  - IMU config definition:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:338)
+  - IMU offset computation:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:423)
+  - IMU object creation:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:503)
+  - IMU sensor debug comparison:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:620)
+  - same pattern for beetle:
+    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:338)
+  - same pattern for beetle omni:
+    [beetle_omni_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_omni_env.py:381)
+- `06_compare_root_vs_imu.py`
+  - direct debug comparison pattern:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:620)
+  - same pattern in beetle:
+    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:657)
+- `07_compare_control_modes.py`
+  - gimbal position targets:
+    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:592)
+  - external force application:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:558)
+- `08_build_observation.py`
+  - observation construction:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
+- `09_reset_and_randomize.py`
+  - randomized reset logic:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:900)
+- `10_add_contact_sensor.py`
+  - contact sensor config:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:316)
+  - contact force use:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:789)
+
+## After this
+
+Once these are comfortable, move to:
+
+- [scripts/tutorials/README.md](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/tutorials/README.md) for environment-oriented inspection
+- `python scripts/rsl_rl/train.py --task Aerial-MiniQuadcopter-Pose-v0 --headless` for RL training

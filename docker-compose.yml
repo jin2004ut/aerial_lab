@@ -59,6 +59,7 @@ services:
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
       - ./logs:/workspace/aerial_lab/logs
       - ./outputs:/workspace/aerial_lab/outputs
+      - ./tutorials:/workspace/aerial_lab/tutorials
       - ./source:/workspace/aerial_lab/source
       - ./scripts:/workspace/aerial_lab/scripts
 
