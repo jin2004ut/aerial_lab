@@ -34,6 +34,14 @@ This directory starts with Isaac Sim basics and then moves into Isaac Lab enviro
 25. `isaac_lab/13_read_get_dones.py`
 26. `isaac_lab/14_read_reset_idx.py`
 
+### Kinikun
+27. `kinikun/00_inspect_asset.py`
+28. `kinikun/01_spawn_kinikun.py`
+29. `kinikun/02_step_arm_joints.py`
+30. `kinikun/03_read_kinikun_state.py`
+31. `kinikun/04_add_imu_sensor.py`
+32. `kinikun/05_step_each_arm_joint.py`
+
 ## Run examples
 
 Run these from `/workspace/aerial_lab` inside the container or from a Python environment where Isaac Sim, Isaac Lab, and `aerial_lab` are installed.
@@ -65,6 +73,12 @@ python tutorials/isaac_lab/11_read_get_observations.py
 python tutorials/isaac_lab/12_read_get_rewards.py
 python tutorials/isaac_lab/13_read_get_dones.py
 python tutorials/isaac_lab/14_read_reset_idx.py
+python tutorials/kinikun/00_inspect_asset.py
+python tutorials/kinikun/01_spawn_kinikun.py --headless
+python tutorials/kinikun/02_step_arm_joints.py --steps 600 --headless
+python tutorials/kinikun/03_read_kinikun_state.py --steps 240 --print_every 60 --headless
+python tutorials/kinikun/04_add_imu_sensor.py --steps 240 --print_every 60 --headless
+python tutorials/kinikun/05_step_each_arm_joint.py --steps 360 --print_every 30 --headless
 ```
 
 ## What you will learn
@@ -95,6 +109,12 @@ python tutorials/isaac_lab/14_read_reset_idx.py
 - `isaac_lab/12_read_get_rewards.py`: how to read the reward code with line numbers.
 - `isaac_lab/13_read_get_dones.py`: how to read the done logic with line numbers.
 - `isaac_lab/14_read_reset_idx.py`: how to read the reset flow with line numbers.
+- `kinikun/00_inspect_asset.py`: how the original kinikun xacro maps to the copied Aerial Lab asset.
+- `kinikun/01_spawn_kinikun.py`: how to spawn the dedicated kinikun articulation asset.
+- `kinikun/02_step_arm_joints.py`: how to command the kinikun arm joints.
+- `kinikun/03_read_kinikun_state.py`: how to read kinikun root and joint states.
+- `kinikun/04_add_imu_sensor.py`: how to attach an IMU to the `fc` link.
+- `kinikun/05_step_each_arm_joint.py`: how to move `arm1_joint` to `arm4_joint` one by one and inspect their targets and current values.
 
 ## Reading guide
 
