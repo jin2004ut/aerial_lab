@@ -1,9 +1,10 @@
 # Isaac Sim Tutorials for Aerial Lab
 
-This directory is the starting point for learning Isaac Sim before moving on to Isaac Lab environments or RL training.
+This directory starts with Isaac Sim basics and then moves into Isaac Lab environment structure.
 
 ## Learning order
 
+### Isaac Sim
 1. `isaac_sim/00_create_empty.py`
 2. `isaac_sim/01_add_scene.py`
 3. `isaac_sim/02_spawn_robot.py`
@@ -15,6 +16,23 @@ This directory is the starting point for learning Isaac Sim before moving on to 
 9. `isaac_sim/08_build_observation.py`
 10. `isaac_sim/09_reset_and_randomize.py`
 11. `isaac_sim/10_add_contact_sensor.py`
+
+### Isaac Lab
+12. `isaac_lab/00_list_envs.py`
+13. `isaac_lab/01_inspect_env_cfg.py`
+14. `isaac_lab/02_step_env.py`
+15. `isaac_lab/03_trace_obs_reward_done.py`
+16. `isaac_lab/04_trace_apply_action.py`
+17. `isaac_lab/05_trace_reset_flow.py`
+18. `isaac_lab/06_trace_reward_terms.py`
+19. `isaac_lab/07_trace_done_reasons.py`
+20. `isaac_lab/08_trace_train_pipeline.py`
+21. `isaac_lab/09_trace_policy_io.py`
+22. `isaac_lab/10_trace_rollout_buffer.py`
+23. `isaac_lab/11_read_get_observations.py`
+24. `isaac_lab/12_read_get_rewards.py`
+25. `isaac_lab/13_read_get_dones.py`
+26. `isaac_lab/14_read_reset_idx.py`
 
 ## Run examples
 
@@ -32,6 +50,21 @@ python tutorials/isaac_sim/07_compare_control_modes.py --robot beetle --mode pos
 python tutorials/isaac_sim/08_build_observation.py --steps 240 --print_every 60
 python tutorials/isaac_sim/09_reset_and_randomize.py --episodes 5
 python tutorials/isaac_sim/10_add_contact_sensor.py --robot mini_quad --steps 300 --print_every 30
+python tutorials/isaac_lab/00_list_envs.py
+python tutorials/isaac_lab/01_inspect_env_cfg.py --task Aerial-MiniQuadcopter-Pose-v0 --headless
+python tutorials/isaac_lab/02_step_env.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 8 --steps 240 --headless
+python tutorials/isaac_lab/03_trace_obs_reward_done.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 4 --steps 120 --headless
+python tutorials/isaac_lab/04_trace_apply_action.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 2 --steps 8 --headless
+python tutorials/isaac_lab/05_trace_reset_flow.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 8 --steps 400 --headless
+python tutorials/isaac_lab/06_trace_reward_terms.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 4 --steps 120 --headless
+python tutorials/isaac_lab/07_trace_done_reasons.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 8 --steps 300 --headless
+python tutorials/isaac_lab/08_trace_train_pipeline.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 8 --headless
+python tutorials/isaac_lab/09_trace_policy_io.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 8 --steps 5 --headless
+python tutorials/isaac_lab/10_trace_rollout_buffer.py --task Aerial-MiniQuadcopter-Pose-v0 --num_envs 4096 --headless
+python tutorials/isaac_lab/11_read_get_observations.py
+python tutorials/isaac_lab/12_read_get_rewards.py
+python tutorials/isaac_lab/13_read_get_dones.py
+python tutorials/isaac_lab/14_read_reset_idx.py
 ```
 
 ## What you will learn
@@ -47,6 +80,21 @@ python tutorials/isaac_sim/10_add_contact_sensor.py --robot mini_quad --steps 30
 - `08_build_observation.py`: how an RL observation is assembled from state tensors.
 - `09_reset_and_randomize.py`: how reset logic and state randomization are implemented.
 - `10_add_contact_sensor.py`: how to instantiate a contact sensor and read collision forces.
+- `isaac_lab/00_list_envs.py`: how to see which Gym tasks are registered by `aerial_lab`.
+- `isaac_lab/01_inspect_env_cfg.py`: how a task name resolves to an environment config object.
+- `isaac_lab/02_step_env.py`: how an Isaac Lab env is created and stepped through Gym.
+- `isaac_lab/03_trace_obs_reward_done.py`: how observation, reward, and done flags appear at runtime.
+- `isaac_lab/04_trace_apply_action.py`: how action tensors become internal thrust commands.
+- `isaac_lab/05_trace_reset_flow.py`: how done flags trigger per-env resets.
+- `isaac_lab/06_trace_reward_terms.py`: how reward terms accumulate during a step.
+- `isaac_lab/07_trace_done_reasons.py`: how crash, drift, and time-out are detected.
+- `isaac_lab/08_trace_train_pipeline.py`: how task, env cfg, runner cfg, and `runner.learn(...)` connect.
+- `isaac_lab/09_trace_policy_io.py`: what the policy network sees on input and output.
+- `isaac_lab/10_trace_rollout_buffer.py`: how rollout size, minibatch size, and update counts are computed.
+- `isaac_lab/11_read_get_observations.py`: how to read the observation-building code with line numbers.
+- `isaac_lab/12_read_get_rewards.py`: how to read the reward code with line numbers.
+- `isaac_lab/13_read_get_dones.py`: how to read the done logic with line numbers.
+- `isaac_lab/14_read_reset_idx.py`: how to read the reset flow with line numbers.
 
 ## Reading guide
 
@@ -107,10 +155,22 @@ If you want to connect each tutorial back to the actual RL environments, these a
     [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:316)
   - contact force use:
     [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:789)
+- `isaac_lab/00_list_envs.py`
+  - registered task import entry:
+    [source/aerial_lab/aerial_lab/tasks/__init__.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/__init__.py)
+- `isaac_lab/01_inspect_env_cfg.py`
+  - config resolution is the same path used before env creation in:
+    [scripts/random_agent.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/random_agent.py:37)
+- `isaac_lab/02_step_env.py`
+  - Gym env creation pattern:
+    [scripts/random_agent.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/random_agent.py:43)
+- `isaac_lab/03_trace_obs_reward_done.py`
+  - observation / reward / done internals:
+    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
 
 ## After this
 
 Once these are comfortable, move to:
 
-- [scripts/tutorials/README.md](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/tutorials/README.md) for environment-oriented inspection
+- [isaac_lab/README.md](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/tutorials/isaac_lab/README.md) for the Isaac Lab-focused track
 - `python scripts/rsl_rl/train.py --task Aerial-MiniQuadcopter-Pose-v0 --headless` for RL training
