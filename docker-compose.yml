@@ -1,0 +1,77 @@
+# =============================================================================
+# Aerial Lab – Docker Compose
+#
+# Usage:
+#   docker compose up -d         # start interactive container
+#   docker compose run --rm aerial_lab bash
+#   docker compose run --rm aerial_lab python scripts/rsl_rl/train.py --task=Beetle-Omni-Pose-v0 --headless
+#
+# Prerequisites on host:
+#   - NVIDIA driver >= 570
+#   - nvidia-container-toolkit  (apt install nvidia-container-toolkit)
+#   - xhost +local:docker        (only needed for GUI / visualization)
+# =============================================================================
+
+services:
+  aerial_lab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ISAACLAB_COMMIT: "47780cf02dae94410cfed81706c8c859eeeacd76"
+        CONDA_ENV: "aeriallab"
+        PYTHON_VERSION: "3.11"
+    image: aerial_lab:latest
+    container_name: aerial_lab
+
+    # -------------------------------------------------------------------------
+    # GPU access
+    # `gpus: all` is honored by regular `docker compose run/up`.
+    # The `deploy` section is mostly for Swarm, so keep the direct GPU request here.
+    # -------------------------------------------------------------------------
+    gpus: all
+    runtime: nvidia
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # -------------------------------------------------------------------------
+    # Display (X11) – required for GUI / non-headless runs
+    # Run `xhost +local:docker` on the host before starting the container.
+    # -------------------------------------------------------------------------
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/tmp/.docker.xauth
+
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+
+      # Isaac Sim
+      - ISAACSIM_HEADLESS=${ISAACSIM_HEADLESS:-1}
+
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      - ./logs:/workspace/aerial_lab/logs
+      - ./outputs:/workspace/aerial_lab/outputs
+      - ./tutorials:/workspace/aerial_lab/tutorials
+      - ./source:/workspace/aerial_lab/source
+      - ./scripts:/workspace/aerial_lab/scripts
+
+    # -------------------------------------------------------------------------
+    # Network / IPC (required by Isaac Sim / Omniverse)
+    # -------------------------------------------------------------------------
+    network_mode: host
+    ipc: host
+    pid: host
+
+    # Keep the container running interactively
+    stdin_open: true
+    tty: true
+
+    working_dir: /workspace/aerial_lab

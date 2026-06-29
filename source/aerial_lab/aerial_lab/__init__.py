@@ -10,5 +10,9 @@ Python module serving as a project/extension template.
 # Register Gym environments.
 from .tasks import *
 
-# Register UI extensions.
-from .ui_extension_example import *
+# NOTE:
+# Keep the package import side-effect small.
+# Importing the sample UI extension here makes every plain `import aerial_lab`
+# pull in Omniverse UI modules, which is unnecessary for training/tutorial
+# scripts and can destabilize GUI startup. The example extension stays
+# available via `aerial_lab.ui_extension_example` when explicitly needed.
