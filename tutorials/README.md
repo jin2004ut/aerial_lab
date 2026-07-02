@@ -41,6 +41,7 @@ This directory starts with Isaac Sim basics and then moves into Isaac Lab enviro
 30. `kinikun/03_read_kinikun_state.py`
 31. `kinikun/04_add_imu_sensor.py`
 32. `kinikun/05_step_each_arm_joint.py`
+33. `kinikun/06_arm_joint_ppo.py`
 
 ## Run examples
 
@@ -79,6 +80,7 @@ python tutorials/kinikun/02_step_arm_joints.py --steps 600 --headless
 python tutorials/kinikun/03_read_kinikun_state.py --steps 240 --print_every 60 --headless
 python tutorials/kinikun/04_add_imu_sensor.py --steps 240 --print_every 60 --headless
 python tutorials/kinikun/05_step_each_arm_joint.py --steps 360 --print_every 30 --headless
+python tutorials/kinikun/06_arm_joint_ppo.py --device cpu --headless --train_iters 500
 ```
 
 ## What you will learn
@@ -115,6 +117,7 @@ python tutorials/kinikun/05_step_each_arm_joint.py --steps 360 --print_every 30 
 - `kinikun/03_read_kinikun_state.py`: how to read kinikun root and joint states.
 - `kinikun/04_add_imu_sensor.py`: how to attach an IMU to the `fc` link.
 - `kinikun/05_step_each_arm_joint.py`: how to move `arm1_joint` to `arm4_joint` one by one and inspect their targets and current values.
+- `kinikun/06_arm_joint_ppo.py`: how to train a minimal fixed-base PPO policy for four-arm joint target tracking.
 
 ## Reading guide
 
@@ -135,62 +138,62 @@ If you want to connect each tutorial back to the actual RL environments, these a
 
 - `02_spawn_robot.py` / `03_step_robot.py`
   - robot asset definitions:
-    [source/aerial_lab/aerial_lab/assets/aerialrobot.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/assets/aerialrobot.py)
+    [source/aerial_lab/aerial_lab/assets/aerialrobot.py](../source/aerial_lab/aerial_lab/assets/aerialrobot.py)
 - `04_read_robot_state.py`
   - root/body state usage in observations:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
   - another direct aerial example:
-    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:611)
+    [beetle_env.py](../source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:611)
 - `05_add_imu_sensor.py`
   - IMU config definition:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:338)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:338)
   - IMU offset computation:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:423)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:423)
   - IMU object creation:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:503)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:503)
   - IMU sensor debug comparison:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:620)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:620)
   - same pattern for beetle:
-    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:338)
+    [beetle_env.py](../source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:338)
   - same pattern for beetle omni:
-    [beetle_omni_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_omni_env.py:381)
+    [beetle_omni_env.py](../source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_omni_env.py:381)
 - `06_compare_root_vs_imu.py`
   - direct debug comparison pattern:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:620)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:620)
   - same pattern in beetle:
-    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:657)
+    [beetle_env.py](../source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:657)
 - `07_compare_control_modes.py`
   - gimbal position targets:
-    [beetle_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:592)
+    [beetle_env.py](../source/aerial_lab/aerial_lab/tasks/direct/beetle/beetle_env.py:592)
   - external force application:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:558)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:558)
 - `08_build_observation.py`
   - observation construction:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
 - `09_reset_and_randomize.py`
   - randomized reset logic:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:900)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:900)
 - `10_add_contact_sensor.py`
   - contact sensor config:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:316)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:316)
   - contact force use:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:789)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:789)
 - `isaac_lab/00_list_envs.py`
   - registered task import entry:
-    [source/aerial_lab/aerial_lab/tasks/__init__.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/__init__.py)
+    [source/aerial_lab/aerial_lab/tasks/__init__.py](../source/aerial_lab/aerial_lab/tasks/__init__.py)
 - `isaac_lab/01_inspect_env_cfg.py`
   - config resolution is the same path used before env creation in:
-    [scripts/random_agent.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/random_agent.py:37)
+    [scripts/random_agent.py](../scripts/random_agent.py:37)
 - `isaac_lab/02_step_env.py`
   - Gym env creation pattern:
-    [scripts/random_agent.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/random_agent.py:43)
+    [scripts/random_agent.py](../scripts/random_agent.py:43)
 - `isaac_lab/03_trace_obs_reward_done.py`
   - observation / reward / done internals:
-    [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
+    [mini_quadcopter_env.py](../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py:576)
 
 ## After this
 
 Once these are comfortable, move to:
 
-- [isaac_lab/README.md](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/tutorials/isaac_lab/README.md) for the Isaac Lab-focused track
+- [isaac_lab/README.md](../tutorials/isaac_lab/README.md) for the Isaac Lab-focused track
 - `python scripts/rsl_rl/train.py --task Aerial-MiniQuadcopter-Pose-v0 --headless` for RL training

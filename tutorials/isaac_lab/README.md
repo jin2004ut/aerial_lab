@@ -110,11 +110,11 @@ python tutorials/isaac_lab/14_read_reset_idx.py
 ## Where This Maps Into Aerial Lab
 
 - task registration:
-  [source/aerial_lab/aerial_lab/tasks/__init__.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/__init__.py)
+  [source/aerial_lab/aerial_lab/tasks/__init__.py](../../source/aerial_lab/aerial_lab/tasks/__init__.py)
 - one concrete direct env:
-  [mini_quadcopter_env.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py)
+  [mini_quadcopter_env.py](../../source/aerial_lab/aerial_lab/tasks/direct/quadcopter/mini_quadcopter_env.py)
 - RL training entry:
-  [scripts/rsl_rl/train.py](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/rsl_rl/train.py)
+  [scripts/rsl_rl/train.py](../../scripts/rsl_rl/train.py)
 
 ## After this
 

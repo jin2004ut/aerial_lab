@@ -203,7 +203,7 @@ The detailed installation process are as follows:
 Currently, only `Beetle-Pose-v0`, `Beetle-Omni-Pose-v0` and `Aerial-MiniQuadcopter-Pose-v0` are available, while `rsl_rl` is recommended. If you want to train your own platform, pay attention to: `assets/aerialrobot.py`, `tasks/direct/xxx` and `data/Robots/xxx`. You can also access other AARs' model files on `data/Robots`
 
 ## Tutorials
-If you want to learn the stack step by step, start with the Isaac Sim tutorials in [tutorials/README.md](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/tutorials/README.md).
+If you want to learn the stack step by step, start with the Isaac Sim tutorials in [tutorials/README.md](tutorials/README.md).
 
 Recommended order:
 
@@ -214,7 +214,7 @@ python tutorials/isaac_sim/02_spawn_robot.py --robot mini_quad
 python tutorials/isaac_sim/03_step_robot.py --robot mini_quad --steps 600
 ```
 
-After that, move to the environment-oriented practice scripts in [scripts/tutorials/README.md](/home/kitagawa/ros/jsk_aerial_robot_ws/src/aerial_lab/scripts/tutorials/README.md), then start RL training.
+After that, move to the environment-oriented practice scripts in [scripts/tutorials/README.md](scripts/tutorials/README.md), then start RL training.
 
 ### Training specific task
 Start training process w/o video record

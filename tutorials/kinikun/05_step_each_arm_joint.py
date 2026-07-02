@@ -23,7 +23,11 @@ simulation_app = app_launcher.app
 import isaaclab.sim as sim_utils
 import torch
 from isaaclab.assets import Articulation
-from tutorials.kinikun.common import resolve_camera_view, resolve_kinikun_cfg, reset_robot, spawn_ground_and_light
+
+try:
+    from .common import resolve_camera_view, resolve_kinikun_cfg, reset_robot, spawn_ground_and_light
+except ImportError:
+    from common import resolve_camera_view, resolve_kinikun_cfg, reset_robot, spawn_ground_and_light
 
 
 def main():
