@@ -3,85 +3,57 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Minimal fixed-base kinikun arm joint-tracking environment (PPO).
-
-The task mirrors ``tutorials/kinikun/06_arm_joint_ppo.py``: the base is fixed,
-gravity on the arm is disabled, and the policy commands the 4 arm joints to
-track a randomly sampled joint-position target.
-
-The code is intentionally written top-to-bottom (logic inlined in each method)
-for readability rather than split into many small helpers.
-"""
+"""Fixed-base kinikun arm1 joint-tracking environment driven through a NARX model."""
 
 from __future__ import annotations
 
 import copy
 import math
 from collections.abc import Sequence
+from pathlib import Path
 
-import isaaclab.envs.mdp as mdp
 import isaaclab.sim as sim_utils
 import torch
 from isaaclab.assets import Articulation, ArticulationCfg
 from isaaclab.envs import DirectRLEnv, DirectRLEnvCfg
-from isaaclab.managers import EventTermCfg as EventTerm
-from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
 from isaaclab.utils import configclass
 
+from aerial_lab.assets import ISAACLAB_ASSETS_DATA_DIR
+
 from aerial_lab.assets.aerialrobot import KINIKUN_CFG  # isort: skip
+from .narx_model import load_narx_model  # isort: skip
 
 # Fixed-base copy of the kinikun asset (deepcopy so we don't mutate the shared global cfg).
 _KINIKUN_ARM_CFG = copy.deepcopy(KINIKUN_CFG)
 _KINIKUN_ARM_CFG.spawn.fix_base = True
-
-
-@configclass
-class EventCfg:
-    """Domain randomization: arm-end mass/inertia + arm-joint friction (startup only)."""
-
-    # Scale the mass of the arm-end links; recompute_inertia=True scales the inertia tensor too.
-    randomize_arm_mass = EventTerm(
-        func=mdp.randomize_rigid_body_mass,
-        mode="startup",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="arm.*_link"),
-            "mass_distribution_params": (0.8, 1.2),
-            "operation": "scale",
-            "recompute_inertia": True,
-        },
-    )
-
-    # Scale the friction coefficient of the arm joints.
-    randomize_arm_friction = EventTerm(
-        func=mdp.randomize_joint_parameters,
-        mode="startup",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names="arm.*_joint"),
-            "friction_distribution_params": (0.5, 1.5),
-            "operation": "scale",
-        },
-    )
+_KINIKUN_ARM_CFG.actuators.pop("arm", None)
 
 
 @configclass
 class KinikunArmEnvCfg(DirectRLEnvCfg):
     # --- timing ---
-    sim_dt = 1 / 100.0
-    decimation = 4
+    # sim_dt matches the NARX training sample rate (narx_meta.json dt_est ~= 0.005s / 200Hz)
+    # so the history advances one slice per _apply_action at the rate the model was trained on.
+    # decimation=1 -> the policy commands pressure every NARX step, keeping the dp/dt feature
+    # continuous and in-distribution (the divisor in _apply_action is sim_dt).
+    sim_dt = 1 / 200.0
+    decimation = 1
     episode_length_s = 10.0
 
     # --- play mode ---  (set True by scripts/rsl_rl/play.py)
-    # In play mode the target is a sine wave per joint instead of a random per-episode target.
+    # In play mode the target is a sine wave instead of a random per-episode target.
     play_mode = False
     play_sine_period_s = 4.0  # period of the sine-wave target
 
-    # --- spaces ---  obs = joint_pos(4) + joint_vel(4) + target(4) + error(4) = 16
-    num_arm_joints = 4
-    action_space = num_arm_joints
-    observation_space = num_arm_joints * 4
+    # --- spaces ---
+    controlled_joint_name = "arm1_joint"
+    num_arm_joints = 1
+    pressure_channels = 2
+    action_space = num_arm_joints * pressure_channels
+    observation_space = num_arm_joints * 7
     state_space = observation_space
 
     # --- task / reward ---
@@ -89,15 +61,25 @@ class KinikunArmEnvCfg(DirectRLEnvCfg):
     track_reward_scale = 1.0
     joint_vel_reward_scale = 0.05
     action_rate_reward_scale = 0.01
+    pressure_limit_mpa = 0.6
+    narx_model_path = (
+        Path(ISAACLAB_ASSETS_DATA_DIR) / "Robots/kinikun/models/out_narx2/narx_model.pt"
+    )
+    narx_meta_path = (
+        Path(ISAACLAB_ASSETS_DATA_DIR)
+        / "Robots/kinikun/models/out_narx2/narx_meta.json"
+    )
 
     # --- simulation ---
     sim: SimulationCfg = SimulationCfg(dt=sim_dt, render_interval=decimation)
 
     # --- scene & robot ---
-    robot_cfg: ArticulationCfg = _KINIKUN_ARM_CFG.replace(prim_path="/World/envs/env_.*/Robot")
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=2.0, replicate_physics=True)
-
-    events: EventCfg = EventCfg()
+    robot_cfg: ArticulationCfg = _KINIKUN_ARM_CFG.replace(
+        prim_path="/World/envs/env_.*/Robot"
+    )
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(
+        num_envs=4096, env_spacing=2.0, replicate_physics=True
+    )
 
 
 class KinikunArmEnv(DirectRLEnv):
@@ -107,30 +89,64 @@ class KinikunArmEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
 
         # Arm joints and their position limits (read from the asset, not hard-coded).
-        self._arm_ids, arm_names = self._robot.find_joints("arm.*_joint")
-        arm_limits = self._robot.data.soft_joint_pos_limits[0, self._arm_ids]  # (num_arm_joints, 2)
+        self._arm_ids, arm_names = self._robot.find_joints(
+            self.cfg.controlled_joint_name
+        )
+        arm_limits = self._robot.data.soft_joint_pos_limits[
+            0, self._arm_ids
+        ]  # (num_arm_joints, 2)
         self._arm_lower = arm_limits[:, 0]
         self._arm_upper = arm_limits[:, 1]
         self._arm_center = 0.5 * (self._arm_lower + self._arm_upper)
         self._arm_half_range = 0.5 * (self._arm_upper - self._arm_lower)
+        self._narx_model, self._narx_meta = load_narx_model(
+            self.cfg.narx_model_path,
+            self.cfg.narx_meta_path,
+            self.device,
+        )
 
-        # Per-joint phase offsets so the play-mode sine targets are not all in sync.
-        self._sine_phase = torch.linspace(0.0, math.pi, self.cfg.num_arm_joints, device=self.device)
+        # The NARX history advances one slice per physics step, so sim_dt must equal the
+        # model's training sample rate (dt_est). A mismatch silently distorts the lag window
+        # and the dp/dt feature scale, so fail loudly instead.
+        if self._narx_meta.dt_est > 0.0 and not math.isclose(
+            self.cfg.sim_dt, self._narx_meta.dt_est, rel_tol=0.05
+        ):
+            raise ValueError(
+                f"sim_dt ({self.cfg.sim_dt:.6f}s) does not match the NARX training "
+                f"dt_est ({self._narx_meta.dt_est:.6f}s). Set cfg.sim_dt to the model's "
+                "sample rate so the history/derivative timing matches training."
+            )
+
+        self._sine_phase = torch.zeros(self.cfg.num_arm_joints, device=self.device)
 
         # Per-env buffers.
         n = self.num_envs
         self._actions = torch.zeros(n, self.cfg.action_space, device=self.device)
         self._last_actions = torch.zeros(n, self.cfg.action_space, device=self.device)
-        self._target_joint_pos = torch.zeros(n, self.cfg.action_space, device=self.device)
+        self._target_joint_pos = torch.zeros(
+            n, self.cfg.num_arm_joints, device=self.device
+        )
+        self._pressure_cmd = torch.zeros(
+            n, self.cfg.num_arm_joints, self.cfg.pressure_channels, device=self.device
+        )
+        self._prev_pressure_cmd = torch.zeros_like(self._pressure_cmd)
+        self._narx_history = torch.zeros(
+            n,
+            self.cfg.num_arm_joints,
+            self._narx_meta.lags,
+            self._narx_meta.feature_dim,
+            device=self.device,
+        )
 
         self._episode_sums = {
-            key: torch.zeros(n, device=self.device) for key in ["track", "joint_vel", "action_rate"]
+            key: torch.zeros(n, device=self.device)
+            for key in ["track", "joint_vel", "action_rate"]
         }
 
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print("Kinikun arm env | fixed_base=True | arm joints:", arm_names)
-        print("Arm lower limits:", self._arm_lower.tolist())
-        print("Arm upper limits:", self._arm_upper.tolist())
+        print("Kinikun arm env | fixed_base=True | arm joint:", arm_names[0])
+        print("Arm lower limit:", self._arm_lower.tolist())
+        print("Arm upper limit:", self._arm_upper.tolist())
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
     def _setup_scene(self):
@@ -148,22 +164,78 @@ class KinikunArmEnv(DirectRLEnv):
         # In play mode the tracking target is a per-joint sine wave that moves every step.
         if self.cfg.play_mode:
             t = self.episode_length_buf.unsqueeze(-1) * self.step_dt  # (num_envs, 1)
-            sine = torch.sin(2.0 * math.pi * t / self.cfg.play_sine_period_s + self._sine_phase)
-            self._target_joint_pos = self._arm_center + self.cfg.target_scale * self._arm_half_range * sine
+            sine = torch.sin(
+                2.0 * math.pi * t / self.cfg.play_sine_period_s + self._sine_phase
+            )
+            self._target_joint_pos = (
+                self._arm_center + self.cfg.target_scale * self._arm_half_range * sine
+            )
 
-        # Store action history, then map normalized action [-1, 1] -> joint-position target.
+        # Store action history, then map normalized action [-1, 1] -> pressure commands.
         self._last_actions = self._actions.clone()
         self._actions = actions.clamp(-1.0, 1.0).to(self.device)
-        self._joint_pos_target = self._arm_center + self._actions * self._arm_half_range
+        self._pressure_cmd = 0.5 * (
+            self._actions.view(self.num_envs, self.cfg.num_arm_joints, 2) + 1.0
+        )
+        self._pressure_cmd *= self.cfg.pressure_limit_mpa
 
     def _apply_action(self) -> None:
-        self._robot.set_joint_position_target(self._joint_pos_target, self._arm_ids)
+        joint_pos = self._robot.data.joint_pos[:, self._arm_ids]
+        joint_vel = self._robot.data.joint_vel[:, self._arm_ids]
+        pressure_rate = (self._pressure_cmd - self._prev_pressure_cmd) / self.cfg.sim_dt
+        current_features = torch.stack(
+            (
+                joint_pos,
+                self._pressure_cmd[:, :, 0],
+                self._pressure_cmd[:, :, 1],
+                pressure_rate[:, :, 0],
+                pressure_rate[:, :, 1],
+            ),
+            dim=-1,
+        )
+        self._narx_history = torch.roll(self._narx_history, shifts=-1, dims=2)
+        self._narx_history[:, :, -1, :] = current_features
+
+        narx_input = self._narx_history.view(
+            self.num_envs * self.cfg.num_arm_joints, -1
+        )
+        narx_input = (
+            narx_input - self._narx_meta.mu.unsqueeze(0)
+        ) / self._narx_meta.std.unsqueeze(0)
+        with torch.no_grad():
+            predicted_joint_pos = self._narx_model(narx_input).view(
+                self.num_envs, self.cfg.num_arm_joints
+            )
+        predicted_joint_pos = torch.clamp(
+            predicted_joint_pos, self._arm_lower, self._arm_upper
+        )
+        predicted_joint_vel = (
+            0.5 * ((predicted_joint_pos - joint_pos) / self.cfg.sim_dt)
+            + 0.5 * joint_vel
+        )
+
+        self._robot.write_joint_state_to_sim(
+            predicted_joint_pos, predicted_joint_vel, self._arm_ids
+        )
+        self._prev_pressure_cmd.copy_(self._pressure_cmd)
 
     def _get_observations(self) -> dict:
         joint_pos = self._robot.data.joint_pos[:, self._arm_ids]
         joint_vel = self._robot.data.joint_vel[:, self._arm_ids]
         position_error = self._target_joint_pos - joint_pos
-        obs = torch.cat((joint_pos, joint_vel, self._target_joint_pos, position_error), dim=-1)
+        last_pressure = self._last_actions
+        pressure_delta = self._pressure_cmd[:, :, 0] - self._pressure_cmd[:, :, 1]
+        obs = torch.cat(
+            (
+                joint_pos,
+                joint_vel,
+                self._target_joint_pos,
+                position_error,
+                last_pressure,
+                pressure_delta,
+            ),
+            dim=-1,
+        )
         return {"policy": obs, "critic": obs}
 
     def _get_rewards(self) -> torch.Tensor:
@@ -198,7 +270,9 @@ class KinikunArmEnv(DirectRLEnv):
         final_mae = (self._target_joint_pos[env_ids] - joint_pos).abs().mean()
         extras = {}
         for key in self._episode_sums.keys():
-            extras["Episode_Reward/" + key] = torch.mean(self._episode_sums[key][env_ids]).item()
+            extras["Episode_Reward/" + key] = torch.mean(
+                self._episode_sums[key][env_ids]
+            ).item()
             self._episode_sums[key][env_ids] = 0.0
         extras["Metrics/final_tracking_mae"] = final_mae.item()
         self.extras["log"] = extras
@@ -213,8 +287,29 @@ class KinikunArmEnv(DirectRLEnv):
         # Sample a new joint-position target inside target_scale * joint range.
         # (In play mode the target is a sine wave driven in _pre_physics_step, so skip sampling.)
         if not self.cfg.play_mode:
-            noise = 2.0 * torch.rand(len(env_ids), self.cfg.num_arm_joints, device=self.device) - 1.0
-            self._target_joint_pos[env_ids] = self._arm_center + noise * self._arm_half_range * self.cfg.target_scale
+            noise = (
+                2.0
+                * torch.rand(len(env_ids), self.cfg.num_arm_joints, device=self.device)
+                - 1.0
+            )
+            self._target_joint_pos[env_ids] = (
+                self._arm_center + noise * self._arm_half_range * self.cfg.target_scale
+            )
 
         self._actions[env_ids] = 0.0
         self._last_actions[env_ids] = 0.0
+        self._pressure_cmd[env_ids] = 0.0
+        self._prev_pressure_cmd[env_ids] = 0.0
+        initial_features = torch.stack(
+            (
+                joint_pos[:, self._arm_ids],
+                torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
+                torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
+                torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
+                torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
+            ),
+            dim=-1,
+        )
+        self._narx_history[env_ids] = initial_features.unsqueeze(2).repeat(
+            1, 1, self._narx_meta.lags, 1
+        )
