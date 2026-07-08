@@ -223,7 +223,7 @@ class KinikunArmEnv(DirectRLEnv):
         joint_pos = self._robot.data.joint_pos[:, self._arm_ids]
         joint_vel = self._robot.data.joint_vel[:, self._arm_ids]
         position_error = self._target_joint_pos - joint_pos
-        last_pressure = self._last_actions
+        last_pressure = self._actions  # bug in the original code
         pressure_delta = self._pressure_cmd[:, :, 0] - self._pressure_cmd[:, :, 1]
         obs = torch.cat(
             (
@@ -296,15 +296,22 @@ class KinikunArmEnv(DirectRLEnv):
                 self._arm_center + noise * self._arm_half_range * self.cfg.target_scale
             )
 
+        neutral_pressure = self.cfg.pressure_limit_mpa / 2.0
         self._actions[env_ids] = 0.0
-        self._last_actions[env_ids] = 0.0
-        self._pressure_cmd[env_ids] = 0.0
-        self._prev_pressure_cmd[env_ids] = 0.0
+        self._last_actions[env_ids] = 0.0        
+        self._pressure_cmd[env_ids] = neutral_pressure
+        self._prev_pressure_cmd[env_ids] = neutral_pressure
+
+        initial_pressure = torch.full(
+            (len(env_ids), self.cfg.num_arm_joints),
+            neutral_pressure,
+            device=self.device,
+        )
         initial_features = torch.stack(
             (
                 joint_pos[:, self._arm_ids],
-                torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
-                torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
+                initial_pressure,
+                initial_pressure,
                 torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
                 torch.zeros(len(env_ids), self.cfg.num_arm_joints, device=self.device),
             ),
